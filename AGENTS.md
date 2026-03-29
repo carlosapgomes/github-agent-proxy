@@ -1,81 +1,116 @@
 # AGENTS.md
 
-## 1. Stack e Versoes
-- Linguagens: Python
-- Python: >=3.12
+## 1. Stack and Versions
+- Language: Python 3.12+
+- Framework: FastAPI
+- Runtime server: Uvicorn
+- Dependency/project manager: `uv`
+- HTTP client: `httpx`
+- Config: `pydantic-settings` + YAML policy file
+- Spec workflow: OpenSpec
 
-## 2. Comandos de Validacao (Quality Gate)
-- Testes: `python3 -m pytest -q`
-- Build: `python3 -m build`
+## 2. Validation Commands (Quality Gate)
+Use `uv` for all Python commands.
 
-## 3. Comandos Essenciais (Operacao Local)
+```bash
+# test suite
+uv run pytest -q
+
+# lint + format check
+uv run ruff check .
+uv run ruff format --check .
+
+# type-check
+uv run mypy .
+
+# spec consistency for active change
+openspec validate add-github-agent-proxy-mvp
+```
+
+If dev tools are missing, install them first:
+
+```bash
+uv add --dev pytest ruff mypy
+```
+
+## 3. Essential Local Commands
+
 ### Setup
 ```bash
-python3 -m venv .venv
-source .venv/bin/activate
-python3 -m pip install -e .
+uv sync
 ```
 
-### Rodar local
+### Run locally
 ```bash
-python3 -m <seu_modulo_principal>
+# adjust import path once app module is created
+uv run uvicorn app.main:app --reload
 ```
 
-### Testes rapidos
+### Quick test run
 ```bash
-python3 -m pytest -q tests/unit
+uv run pytest -q tests/unit
 ```
 
-### Testes completos
+### Full test run
 ```bash
-python3 -m pytest -q
+uv run pytest -q
 ```
 
+## 4. Architecture and Constraints
+- System boundary: `Hermes Agent -> FastAPI Proxy -> GitHub API`.
+- Hermes MUST never have direct GitHub write access.
+- Proxy exposes only 3 write endpoints:
+  - `POST /create-branch`
+  - `POST /commit-files`
+  - `POST /create-pr`
+- Authorization MUST come from YAML policy:
+  - `allowed_repos`
+  - `allowed_actions`
+  - `protected_branches`
+- Commits/push-like writes to protected branches (`main`, `master`, configured protected branches) are forbidden.
+- GitHub auth MUST use GitHub App installation token per request.
+- Logging MUST emit structured JSON with at least `timestamp`, `agent`, `repo`, `action`.
 
-## 4. Arquitetura e Constraints
-- Organizar logica por modulo/cohesao; evitar funcoes gigantes.
-
-## 5. Politica de Testes
-- TDD obrigatorio: RED (teste falha) -> GREEN (minimo para passar) -> REFACTOR (limpeza sem quebrar).
-- Nao iniciar implementacao sem primeiro teste falhando para o comportamento-alvo.
-- Priorizar testes unitarios; usar integracao para contratos e fluxos.
-- Ao tocar legado sem testes, adicionar ao menos um teste de caracterizacao.
+## 5. Testing Policy
+- Mandatory TDD cycle: RED -> GREEN -> REFACTOR.
+- Do not implement behavior before a failing test (except non-code setup/docs tasks).
+- Prefer endpoint-level vertical-slice tests per task.
+- Mock/stub GitHub API interactions in tests (no live GitHub dependency in test suite).
+- Each implemented requirement/scenario should map to at least one test case.
 
 ## 6. Stop Rule (CRUCIAL)
-- Implementar uma task slice vertical por vez (end-to-end).
-- Nao quebrar o trabalho em slice horizontal por camada sem entrega de fluxo completo.
-- Antes de codar o change: design.md e obrigatorio, exceto QUICK de bugfix simples e reversivel.
-- Rodar comandos de validacao da secao 2.
-- Atualizar tasks/specs com o status do slice.
-- Fazer commit com mensagem rastreavel e dar push para branch remota.
-- PARAR e pedir confirmacao explicita para o proximo slice.
-- Nao iniciar o proximo slice sem confirmacao explicita do usuario.
+- Implement exactly one vertical slice/task at a time.
+- Do not do horizontal layer-only slices without end-to-end value.
+- For active non-QUICK changes, require `design.md` before implementation.
+- Run validation commands from section 2.
+- Update OpenSpec artifacts (`tasks.md`, specs/docs when needed).
+- Commit with traceable message including task ID.
+- Push branch.
+- STOP and request explicit confirmation before the next task.
 
 ## 7. Definition of Done (DoD)
-- [ ] Build/check sem erros
-- [ ] Testes relevantes passando
-- [ ] Lint/type-check sem erros relevantes
-- [ ] Specs/docs atualizadas quando necessario
-- [ ] Commit com mensagem clara e rastreavel
-- [ ] Push realizado para branch remota
+- [ ] Relevant tests are implemented and passing
+- [ ] Lint/format/type-check pass (or documented temporary exception)
+- [ ] OpenSpec artifacts updated (`tasks.md` at minimum)
+- [ ] Security constraints preserved (no protected-branch direct writes)
+- [ ] Commit message references task/slice ID
+- [ ] Push completed to remote branch
 
-## 8. Anti-patterns Proibidos
-- Nao criar classes/funcoes God object com responsabilidades demais.
-- Nao deixar TODO/FIXME sem issue ou plano.
-- Nao acoplar regras de negocio em camada de apresentacao.
-- Nao executar slices horizontais por camada sem valor end-to-end.
-- Nao introduzir side effects globais invisiveis em import-time.
+## 8. Forbidden Anti-Patterns
+- Do not add generic GitHub passthrough endpoints.
+- Do not bypass policy checks in endpoint handlers.
+- Do not hardcode allowed repos/actions in code when policy file should govern behavior.
+- Do not write directly to protected branches, even for convenience.
+- Do not couple transport validation, policy logic, and GitHub client calls into one God function.
+- Do not continue to next task without explicit user approval.
 
-## 9. Prompt de Reentrada
+## 9. Re-entry Prompt
 ```text
 Read AGENTS.md and PROJECT_CONTEXT.md first.
-Implement ONLY the next incomplete slice from tasks/spec.
-Use vertical slicing (end-to-end); avoid horizontal slicing by layer.
-Follow TDD cycle: RED (failing test) -> GREEN (minimal pass) -> REFACTOR (clean safely).
-If the active change is not a simple QUICK bugfix, require design.md before implementation.
-Run section 2 validation commands and update artifacts for the completed slice.
-Commit and push the current branch.
-STOP and ask for explicit confirmation before starting the next slice.
+Read openspec/changes/add-github-agent-proxy-mvp/{proposal.md,design.md,tasks.md} and related specs.
+Implement ONLY the next incomplete task from tasks.md.
+Use vertical slicing and TDD: RED -> GREEN -> REFACTOR.
+Mock GitHub API interactions in tests.
+Run quality gate commands and openspec validation.
+Update tasks.md, commit, push, then STOP and ask for explicit confirmation.
 ```
-
-<!-- generated-by: agents-md-generator -->
