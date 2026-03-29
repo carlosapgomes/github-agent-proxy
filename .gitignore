@@ -1,0 +1,7 @@
+
+# dev-loop bootstrap rules
+prompts/
+.env
+*.secret
+
+# OpenSpec artifacts should be versioned (active changes + archive)
