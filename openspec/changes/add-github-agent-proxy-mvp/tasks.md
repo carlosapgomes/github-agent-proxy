@@ -31,7 +31,7 @@
 
 ## 5. Final verification and release readiness
 
-- [ ] 5.1 Add integration tests for full workflow: create-branch → commit-files → create-pr
+- [x] 5.1 Add integration tests for full workflow: create-branch → commit-files → create-pr
 - [ ] 5.2 Validate no direct write path exists for `main`/`master`/protected branches
 - [ ] 5.3 Document API contracts and policy file usage in project docs
 - [ ] 5.4 Run project quality gate and record evidence in change artifacts
