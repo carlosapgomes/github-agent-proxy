@@ -1,0 +1,19 @@
+# GitHub Agent Proxy Policy Configuration
+# Defines allowed repositories, actions, and protected branches
+
+# Repositories that Hermes can interact with
+allowed_repos:
+  - owner/allowed-repo
+  - owner/another-repo
+
+# Actions that Hermes can perform
+allowed_actions:
+  - create_branch
+  - commit_files
+  - create_pr
+
+# Branches that cannot receive direct writes
+# Note: 'main' and 'master' are always protected implicitly
+protected_branches:
+  - release/*
+  - staging

@@ -1,11 +1,11 @@
-"""GitHub App installation token provider.
+"""GitHub App installation token provider and API client.
 
 Task 1.3: Define GitHub App installation-token provider abstraction
 (token per request).
 """
 
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import httpx
 import jwt
@@ -14,6 +14,12 @@ from pydantic import BaseModel
 
 class GitHubTokenError(Exception):
     """Raised when GitHub token generation fails."""
+
+    pass
+
+
+class GitHubAPIError(Exception):
+    """Raised when GitHub API request fails."""
 
     pass
 
@@ -152,5 +158,83 @@ class TokenProvider:
         return jwt.encode(payload, self._config.private_key, algorithm="RS256")
 
 
-# Re-export timedelta for use in tests
-from datetime import timedelta  # noqa: E402
+class GitHubClient:
+    """Client for making authenticated requests to GitHub API.
+
+    Uses the TokenProvider to get installation tokens for each request.
+    """
+
+    _GITHUB_API_URL = "https://api.github.com"
+
+    def __init__(self, token_provider: TokenProvider) -> None:
+        """Initialize the GitHub client.
+
+        Args:
+            token_provider: Provider for GitHub App installation tokens
+        """
+        self._token_provider = token_provider
+
+    def create_branch(self, repo: str, branch: str, base: str) -> dict:
+        """Create a new branch in a repository.
+
+        Args:
+            repo: Repository in format 'owner/repo'
+            branch: Name of the new branch
+            base: Base branch to create from
+
+        Returns:
+            GitHub API response with branch reference info
+
+        Raises:
+            GitHubAPIError: If the API request fails
+        """
+        token = self._token_provider.get_installation_token()
+
+        # First, get the SHA of the base branch
+        owner, repo_name = repo.split("/")
+        ref_url = (
+            f"{self._GITHUB_API_URL}/repos/{owner}/{repo_name}/git/ref/heads/{base}"
+        )
+
+        headers = {
+            "Authorization": f"Bearer {token}",
+            "Accept": "application/vnd.github+json",
+            "X-GitHub-Api-Version": "2022-11-28",
+        }
+
+        try:
+            with httpx.Client() as client:
+                # Get base branch SHA
+                ref_response = client.get(ref_url, headers=headers)
+
+                if ref_response.status_code != 200:
+                    raise GitHubAPIError(
+                        f"Failed to get base branch '{base}': "
+                        f"status={ref_response.status_code}, body={ref_response.text}"
+                    )
+
+                base_sha = ref_response.json()["object"]["sha"]
+
+                # Create the new branch
+                create_url = (
+                    f"{self._GITHUB_API_URL}/repos/{owner}/{repo_name}/git/refs"
+                )
+                create_response = client.post(
+                    create_url,
+                    headers=headers,
+                    json={
+                        "ref": f"refs/heads/{branch}",
+                        "sha": base_sha,
+                    },
+                )
+
+                if create_response.status_code not in (200, 201):
+                    raise GitHubAPIError(
+                        f"Failed to create branch '{branch}': "
+                        f"status={create_response.status_code}, body={create_response.text}"
+                    )
+
+                return create_response.json()
+
+        except httpx.HTTPError as e:
+            raise GitHubAPIError(f"GitHub API request failed: {e}") from e

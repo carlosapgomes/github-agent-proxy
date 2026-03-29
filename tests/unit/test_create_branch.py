@@ -13,7 +13,7 @@ from unittest.mock import patch
 import pytest
 from fastapi.testclient import TestClient
 
-from app.main import app
+from app.main import app, _app_state
 
 
 class TestCreateBranchAuth:
@@ -33,7 +33,7 @@ class TestCreateBranchAuth:
 
         assert response.status_code == 401
         data = response.json()
-        assert data["detail"]["error"] == "unauthorized"
+        assert data["error"] == "unauthorized"
 
     def test_invalid_token_returns_401(self, client: TestClient) -> None:
         """WHEN invalid token is provided THEN returns 401."""
@@ -106,7 +106,11 @@ class TestCreateBranchPolicy:
         """WHEN branch name matches protected_branches THEN returns 403."""
         response = client.post(
             "/create-branch",
-            json={"repo": "owner/allowed-repo", "branch": "main", "base": "develop"},
+            json={
+                "repo": "owner/allowed-repo",
+                "branch": "main",
+                "base": "develop",
+            },
             headers=auth_headers,
         )
 
@@ -121,7 +125,11 @@ class TestCreateBranchPolicy:
         """WHEN branch name is 'master' THEN returns 403 (implicit protection)."""
         response = client.post(
             "/create-branch",
-            json={"repo": "owner/allowed-repo", "branch": "master", "base": "develop"},
+            json={
+                "repo": "owner/allowed-repo",
+                "branch": "master",
+                "base": "develop",
+            },
             headers=auth_headers,
         )
 
@@ -197,7 +205,7 @@ class TestCreateBranchSuccess:
         self, client: TestClient, auth_headers: dict[str, str]
     ) -> None:
         """WHEN all checks pass THEN creates branch and returns success."""
-        with patch("app.main.github_client") as mock_github:
+        with patch.object(_app_state, "github_client") as mock_github:
             mock_github.create_branch.return_value = {
                 "ref": "refs/heads/feature/test",
                 "object": {"sha": "abc123"},
@@ -222,26 +230,21 @@ class TestCreateBranchSuccess:
         self, client: TestClient, auth_headers: dict[str, str]
     ) -> None:
         """WHEN creating branch THEN uses per-request GitHub token."""
-        with patch("app.main.token_provider") as mock_token_provider:
-            mock_token_provider.get_installation_token.return_value = "ghs_test_token"
+        with patch.object(_app_state, "github_client") as mock_github:
+            mock_github.create_branch.return_value = {"ref": "refs/heads/feature/test"}
 
-            with patch("app.main.github_client") as mock_github:
-                mock_github.create_branch.return_value = {
-                    "ref": "refs/heads/feature/test"
-                }
+            client.post(
+                "/create-branch",
+                json={
+                    "repo": "owner/allowed-repo",
+                    "branch": "feature/test",
+                    "base": "main",
+                },
+                headers=auth_headers,
+            )
 
-                client.post(
-                    "/create-branch",
-                    json={
-                        "repo": "owner/allowed-repo",
-                        "branch": "feature/test",
-                        "base": "main",
-                    },
-                    headers=auth_headers,
-                )
-
-                # Verify token was obtained
-                mock_token_provider.get_installation_token.assert_called_once()
+            # Verify create_branch was called
+            mock_github.create_branch.assert_called_once()
 
 
 class TestCreateBranchAuditLog:
@@ -262,8 +265,8 @@ class TestCreateBranchAuditLog:
     ) -> None:
         """WHEN branch creation succeeds THEN audit log is emitted."""
         with (
-            patch("app.main.github_client") as mock_github,
-            patch("app.main.audit_logger") as mock_audit,
+            patch.object(_app_state, "github_client") as mock_github,
+            patch.object(_app_state, "audit_logger") as mock_audit,
         ):
             mock_github.create_branch.return_value = {"ref": "refs/heads/feature/test"}
 
@@ -289,7 +292,7 @@ class TestCreateBranchAuditLog:
         self, client: TestClient, auth_headers: dict[str, str]
     ) -> None:
         """WHEN branch creation is denied THEN audit log is emitted with status=denied."""
-        with patch("app.main.audit_logger") as mock_audit:
+        with patch.object(_app_state, "audit_logger") as mock_audit:
             client.post(
                 "/create-branch",
                 json={

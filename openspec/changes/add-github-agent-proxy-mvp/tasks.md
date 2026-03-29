@@ -8,7 +8,7 @@
 ## 2. Vertical Slice A — `POST /create-branch`
 
 - [x] 2.1 RED: Add failing API tests for success and denial paths (unauthenticated, unauthorized repo/action, protected branch)
-- [ ] 2.2 GREEN: Implement minimal `POST /create-branch` endpoint to satisfy tests with policy enforcement
+- [x] 2.2 GREEN: Implement minimal `POST /create-branch` endpoint to satisfy tests with policy enforcement
 - [ ] 2.3 GREEN: Integrate per-request GitHub App token generation and branch creation call
 - [ ] 2.4 REFACTOR: Clean route/service boundaries and keep tests green
 - [ ] 2.5 Add audit log assertions for successful and denied `create_branch` requests
