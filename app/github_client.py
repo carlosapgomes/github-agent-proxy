@@ -238,3 +238,150 @@ class GitHubClient:
 
         except httpx.HTTPError as e:
             raise GitHubAPIError(f"GitHub API request failed: {e}") from e
+
+    def commit_files(
+        self,
+        repo: str,
+        branch: str,
+        files: list[tuple[str, str]],
+        message: str,
+    ) -> dict:
+        """Commit files to a branch in a repository.
+
+        Args:
+            repo: Repository in format 'owner/repo'
+            branch: Target branch name
+            files: List of (path, content) tuples
+            message: Commit message
+
+        Returns:
+            GitHub API response with commit info
+
+        Raises:
+            GitHubAPIError: If the API request fails
+        """
+        token = self._token_provider.get_installation_token()
+
+        owner, repo_name = repo.split("/")
+        headers = {
+            "Authorization": f"Bearer {token}",
+            "Accept": "application/vnd.github+json",
+            "X-GitHub-Api-Version": "2022-11-28",
+        }
+
+        try:
+            with httpx.Client() as client:
+                # Get the latest commit on the branch
+                ref_url = (
+                    f"{self._GITHUB_API_URL}/repos/{owner}/{repo_name}/"
+                    f"git/ref/heads/{branch}"
+                )
+                ref_response = client.get(ref_url, headers=headers)
+
+                if ref_response.status_code != 200:
+                    raise GitHubAPIError(
+                        f"Failed to get branch '{branch}': "
+                        f"status={ref_response.status_code}, body={ref_response.text}"
+                    )
+
+                base_sha = ref_response.json()["object"]["sha"]
+
+                # Get the base tree
+                commit_url = (
+                    f"{self._GITHUB_API_URL}/repos/{owner}/{repo_name}/"
+                    f"git/commits/{base_sha}"
+                )
+                commit_response = client.get(commit_url, headers=headers)
+
+                if commit_response.status_code != 200:
+                    raise GitHubAPIError(
+                        f"Failed to get commit: status={commit_response.status_code}"
+                    )
+
+                base_tree_sha = commit_response.json()["tree"]["sha"]
+
+                # Create blobs for each file
+                blobs = []
+                for file_path, content in files:
+                    blob_url = (
+                        f"{self._GITHUB_API_URL}/repos/{owner}/{repo_name}/git/blobs"
+                    )
+                    blob_response = client.post(
+                        blob_url,
+                        headers=headers,
+                        json={"content": content, "encoding": "utf-8"},
+                    )
+
+                    if blob_response.status_code != 201:
+                        raise GitHubAPIError(
+                            f"Failed to create blob for '{file_path}': "
+                            f"status={blob_response.status_code}"
+                        )
+
+                    blobs.append(
+                        {
+                            "path": file_path,
+                            "mode": "100644",
+                            "type": "blob",
+                            "sha": blob_response.json()["sha"],
+                        }
+                    )
+
+                # Create a new tree with the blobs
+                tree_url = f"{self._GITHUB_API_URL}/repos/{owner}/{repo_name}/git/trees"
+                tree_response = client.post(
+                    tree_url,
+                    headers=headers,
+                    json={"base_tree": base_tree_sha, "tree": blobs},
+                )
+
+                if tree_response.status_code != 201:
+                    raise GitHubAPIError(
+                        f"Failed to create tree: status={tree_response.status_code}"
+                    )
+
+                new_tree_sha = tree_response.json()["sha"]
+
+                # Create the commit
+                new_commit_url = (
+                    f"{self._GITHUB_API_URL}/repos/{owner}/{repo_name}/git/commits"
+                )
+                new_commit_response = client.post(
+                    new_commit_url,
+                    headers=headers,
+                    json={
+                        "message": message,
+                        "tree": new_tree_sha,
+                        "parents": [base_sha],
+                    },
+                )
+
+                if new_commit_response.status_code != 201:
+                    raise GitHubAPIError(
+                        f"Failed to create commit: "
+                        f"status={new_commit_response.status_code}"
+                    )
+
+                new_commit_sha = new_commit_response.json()["sha"]
+
+                # Update the branch reference
+                update_ref_url = (
+                    f"{self._GITHUB_API_URL}/repos/{owner}/{repo_name}/"
+                    f"git/refs/heads/{branch}"
+                )
+                update_ref_response = client.patch(
+                    update_ref_url,
+                    headers=headers,
+                    json={"sha": new_commit_sha},
+                )
+
+                if update_ref_response.status_code != 200:
+                    raise GitHubAPIError(
+                        f"Failed to update branch reference: "
+                        f"status={update_ref_response.status_code}"
+                    )
+
+                return {"sha": new_commit_sha, "message": message}
+
+        except httpx.HTTPError as e:
+            raise GitHubAPIError(f"GitHub API request failed: {e}") from e

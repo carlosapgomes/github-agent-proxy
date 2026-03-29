@@ -417,7 +417,8 @@ class TestCommitFilesAuditLog:
             call_kwargs = mock_service.commit_files.call_args[1]
             assert call_kwargs["agent"] == "hermes"
             assert call_kwargs["repo"] == "owner/allowed-repo"
-            assert call_kwargs["action"] == "commit_files"
+            assert call_kwargs["branch"] == "feature/test"
+            assert call_kwargs["message"] == "Add test file"
 
     def test_denied_commit_logs_audit(
         self, client: TestClient, auth_headers: dict[str, str]

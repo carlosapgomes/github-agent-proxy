@@ -16,7 +16,7 @@
 ## 3. Vertical Slice B — `POST /commit-files`
 
 - [x] 3.1 RED: Add failing API tests for commit success and blocking cases (protected branch, empty files, unauthorized repo/action)
-- [ ] 3.2 GREEN: Implement minimal `POST /commit-files` endpoint with payload validation and policy checks
+- [x] 3.2 GREEN: Implement minimal `POST /commit-files` endpoint with payload validation and policy checks
 - [ ] 3.3 GREEN: Implement GitHub commit flow for file updates on non-protected branches
 - [ ] 3.4 REFACTOR: Isolate commit orchestration logic and preserve API behavior
 - [ ] 3.5 Add audit log assertions for `commit_files` success and denial events

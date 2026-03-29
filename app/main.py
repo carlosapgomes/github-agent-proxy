@@ -13,13 +13,17 @@ from pathlib import Path
 from fastapi import Depends, FastAPI, HTTPException, Request, status
 from fastapi.responses import JSONResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from app.audit import AuditLogger
 from app.auth import AuthGuard
 from app.github_client import GitHubAppConfig, GitHubClient, TokenProvider
 from app.policy import Policy, PolicyLoader
-from app.services import BranchService, BranchCreationError
+from app.services import (
+    BranchService,
+    CommitService,
+    ServiceError,
+)
 
 
 class AppState:
@@ -32,6 +36,7 @@ class AppState:
         self.token_provider: TokenProvider | None = None
         self.github_client: GitHubClient | None = None
         self.branch_service: BranchService | None = None
+        self.commit_service: CommitService | None = None
         self._initialized = False
 
     def initialize(self) -> None:
@@ -83,6 +88,11 @@ class AppState:
                 github_client=self.github_client,
                 audit_logger=self.audit_logger,
             )
+            self.commit_service = CommitService(
+                policy=self.policy,
+                github_client=self.github_client,
+                audit_logger=self.audit_logger,
+            )
 
     def ensure_initialized(self) -> None:
         """Ensure state is initialized."""
@@ -124,6 +134,40 @@ class CreateBranchResponse(BaseModel):
     status: str = "success"
     branch: str
     ref: str
+
+
+class FileToCommit(BaseModel):
+    """A file to be committed."""
+
+    path: str = Field(..., description="File path in the repository")
+    content: str = Field(..., description="File content")
+
+
+class CommitFilesRequest(BaseModel):
+    """Request model for commit-files endpoint."""
+
+    repo: str = Field(..., description="Repository in format 'owner/repo'")
+    branch: str = Field(..., description="Target branch name")
+    files: list[FileToCommit] = Field(
+        ..., min_length=1, description="List of files to commit"
+    )
+    message: str = Field(..., description="Commit message")
+
+    @field_validator("files")
+    @classmethod
+    def files_not_empty(cls, v: list[FileToCommit]) -> list[FileToCommit]:
+        """Validate that files list is not empty."""
+        if not v:
+            raise ValueError("files list cannot be empty")
+        return v
+
+
+class CommitFilesResponse(BaseModel):
+    """Response model for successful commit."""
+
+    status: str = "success"
+    sha: str
+    message: str
 
 
 class ErrorResponse(BaseModel):
@@ -172,12 +216,20 @@ def get_branch_service() -> BranchService:
     return _app_state.branch_service
 
 
+def get_commit_service() -> CommitService:
+    """Get the commit service from app state."""
+    _app_state.ensure_initialized()
+    if _app_state.commit_service is None:
+        raise RuntimeError("Commit service not initialized")
+    return _app_state.commit_service
+
+
 def get_agent(request: Request) -> str:
     """Get the authenticated agent from request state."""
     return getattr(request.state, "agent", "unknown")
 
 
-def handle_service_error(error: BranchCreationError) -> HTTPException:
+def handle_service_error(error: ServiceError) -> HTTPException:
     """Convert service layer error to HTTP exception."""
     status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
     if error.error_code == "forbidden":
@@ -229,5 +281,54 @@ async def create_branch(
             ref=result.ref,
         )
 
-    except BranchCreationError as e:
+    except ServiceError as e:
+        raise handle_service_error(e)
+
+
+@app.post("/commit-files", response_model=CommitFilesResponse)
+async def commit_files(
+    request: Request,
+    body: CommitFilesRequest,
+    _: None = Depends(require_auth),
+    service: CommitService = Depends(get_commit_service),
+) -> CommitFilesResponse:
+    """Commit files to a branch in the specified repository.
+
+    Args:
+        request: FastAPI request object
+        body: Commit files request
+        _: Auth dependency (validates API key)
+        service: Commit service dependency
+
+    Returns:
+        CommitFilesResponse on success
+
+    Raises:
+        HTTPException: 403 if policy violation
+        HTTPException: 422 if validation error
+        HTTPException: 500 if GitHub API error
+    """
+    from app.services import FileEntry
+
+    agent = get_agent(request)
+
+    # Convert request files to FileEntry objects
+    files = [FileEntry(path=f.path, content=f.content) for f in body.files]
+
+    try:
+        result = service.commit_files(
+            agent=agent,
+            repo=body.repo,
+            branch=body.branch,
+            files=files,
+            message=body.message,
+        )
+
+        return CommitFilesResponse(
+            status="success",
+            sha=result.sha,
+            message=result.message,
+        )
+
+    except ServiceError as e:
         raise handle_service_error(e)
