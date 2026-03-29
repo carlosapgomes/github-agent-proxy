@@ -1,7 +1,7 @@
 ## 1. Foundation and policy primitives
 
 - [x] 1.1 Define YAML policy loader and validation for `allowed_repos`, `allowed_actions`, and `protected_branches`
-- [ ] 1.2 Define request auth guard for `Authorization: Bearer <API_KEY>` with 401 behavior
+- [x] 1.2 Define request auth guard for `Authorization: Bearer <API_KEY>` with 401 behavior
 - [ ] 1.3 Define GitHub App installation-token provider abstraction (token per request)
 - [ ] 1.4 Define structured JSON audit logging contract (`timestamp`, `agent`, `repo`, `action`)
 
