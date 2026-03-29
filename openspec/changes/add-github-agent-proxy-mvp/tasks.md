@@ -25,8 +25,8 @@
 
 - [x] 4.1 RED: Add failing API tests for PR success and validation denials (`head == base`, protected `head`, unauthorized repo/action)
 - [x] 4.2 GREEN: Implement minimal `POST /create-pr` endpoint with policy + payload validation
-- [ ] 4.3 GREEN: Implement GitHub PR creation with per-request installation token
-- [ ] 4.4 REFACTOR: Consolidate shared policy checks while preserving endpoint-specific constraints
+- [x] 4.3 GREEN: Implement GitHub PR creation with per-request installation token
+- [x] 4.4 REFACTOR: Consolidate shared policy checks while preserving endpoint-specific constraints
 - [ ] 4.5 Add audit log assertions for `create_pr` success and denial events
 
 ## 5. Final verification and release readiness
