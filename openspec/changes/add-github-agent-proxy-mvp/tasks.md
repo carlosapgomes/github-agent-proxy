@@ -27,7 +27,7 @@
 - [x] 4.2 GREEN: Implement minimal `POST /create-pr` endpoint with policy + payload validation
 - [x] 4.3 GREEN: Implement GitHub PR creation with per-request installation token
 - [x] 4.4 REFACTOR: Consolidate shared policy checks while preserving endpoint-specific constraints
-- [ ] 4.5 Add audit log assertions for `create_pr` success and denial events
+- [x] 4.5 Add audit log assertions for `create_pr` success and denial events
 
 ## 5. Final verification and release readiness
 
