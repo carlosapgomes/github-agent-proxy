@@ -34,4 +34,4 @@
 - [x] 5.1 Add integration tests for full workflow: create-branch → commit-files → create-pr
 - [x] 5.2 Validate no direct write path exists for `main`/`master`/protected branches
 - [x] 5.3 Document API contracts and policy file usage in project docs
-- [ ] 5.4 Run project quality gate and record evidence in change artifacts
+- [x] 5.4 Run project quality gate and record evidence in change artifacts
