@@ -19,7 +19,7 @@
 - [x] 3.2 GREEN: Implement minimal `POST /commit-files` endpoint with payload validation and policy checks
 - [x] 3.3 GREEN: Implement GitHub commit flow for file updates on non-protected branches
 - [x] 3.4 REFACTOR: Isolate commit orchestration logic and preserve API behavior
-- [ ] 3.5 Add audit log assertions for `commit_files` success and denial events
+- [x] 3.5 Add audit log assertions for `commit_files` success and denial events
 
 ## 4. Vertical Slice C — `POST /create-pr`
 
