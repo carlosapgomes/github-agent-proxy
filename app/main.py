@@ -19,6 +19,7 @@ from app.audit import AuditLogger
 from app.auth import AuthGuard
 from app.github_client import GitHubAppConfig, GitHubClient, TokenProvider
 from app.policy import Policy, PolicyLoader
+from app.services import BranchService, BranchCreationError
 
 
 class AppState:
@@ -30,6 +31,7 @@ class AppState:
         self.audit_logger: AuditLogger | None = None
         self.token_provider: TokenProvider | None = None
         self.github_client: GitHubClient | None = None
+        self.branch_service: BranchService | None = None
         self._initialized = False
 
     def initialize(self) -> None:
@@ -64,7 +66,23 @@ class AppState:
             self.token_provider = TokenProvider(github_config)
             self.github_client = GitHubClient(token_provider=self.token_provider)
 
+        # Initialize services
+        self._init_services()
+
         self._initialized = True
+
+    def _init_services(self) -> None:
+        """Initialize service layer components."""
+        if (
+            self.policy is not None
+            and self.github_client is not None
+            and self.audit_logger is not None
+        ):
+            self.branch_service = BranchService(
+                policy=self.policy,
+                github_client=self.github_client,
+                audit_logger=self.audit_logger,
+            )
 
     def ensure_initialized(self) -> None:
         """Ensure state is initialized."""
@@ -146,57 +164,31 @@ async def require_auth(
     await _app_state.auth_guard.require_auth(request, credentials)
 
 
-def check_policy(request: Request, repo: str, action: str) -> None:
-    """Check if action is allowed on repo by policy.
-
-    Args:
-        request: FastAPI request object
-        repo: Repository name
-        action: Action name
-
-    Raises:
-        HTTPException: 403 if action or repo not allowed
-    """
+def get_branch_service() -> BranchService:
+    """Get the branch service from app state."""
     _app_state.ensure_initialized()
+    if _app_state.branch_service is None:
+        raise RuntimeError("Branch service not initialized")
+    return _app_state.branch_service
 
-    # Get agent from request state (set by auth guard)
-    agent = getattr(request.state, "agent", "unknown")
 
-    # Check if repo is allowed
-    if _app_state.policy is None or not _app_state.policy.is_repo_allowed(repo):
-        if _app_state.audit_logger:
-            _app_state.audit_logger.log(
-                agent=agent,
-                repo=repo,
-                action=action,
-                status="denied",
-                error=f"Repository '{repo}' is not in allowed_repos",
-            )
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail={
-                "error": "forbidden",
-                "message": f"Repository '{repo}' is not allowed",
-            },
-        )
+def get_agent(request: Request) -> str:
+    """Get the authenticated agent from request state."""
+    return getattr(request.state, "agent", "unknown")
 
-    # Check if action is allowed
-    if not _app_state.policy.is_action_allowed(action):
-        if _app_state.audit_logger:
-            _app_state.audit_logger.log(
-                agent=agent,
-                repo=repo,
-                action=action,
-                status="denied",
-                error=f"Action '{action}' is not in allowed_actions",
-            )
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail={
-                "error": "forbidden",
-                "message": f"Action '{action}' is not allowed",
-            },
-        )
+
+def handle_service_error(error: BranchCreationError) -> HTTPException:
+    """Convert service layer error to HTTP exception."""
+    status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
+    if error.error_code == "forbidden":
+        status_code = status.HTTP_403_FORBIDDEN
+    elif error.error_code == "server_error":
+        status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
+
+    return HTTPException(
+        status_code=status_code,
+        detail={"error": error.error_code, "message": error.message},
+    )
 
 
 @app.post("/create-branch", response_model=CreateBranchResponse)
@@ -204,6 +196,7 @@ async def create_branch(
     request: Request,
     body: CreateBranchRequest,
     _: None = Depends(require_auth),
+    service: BranchService = Depends(get_branch_service),
 ) -> CreateBranchResponse:
     """Create a new branch in the specified repository.
 
@@ -211,6 +204,7 @@ async def create_branch(
         request: FastAPI request object
         body: Branch creation request
         _: Auth dependency (validates API key)
+        service: Branch service dependency
 
     Returns:
         CreateBranchResponse on success
@@ -219,71 +213,21 @@ async def create_branch(
         HTTPException: 403 if policy violation
         HTTPException: 500 if GitHub API error
     """
-    _app_state.ensure_initialized()
-
-    # Get agent from request state
-    agent = getattr(request.state, "agent", "unknown")
-
-    # Check policy (repo and action)
-    check_policy(request, body.repo, "create_branch")
-
-    # Check if branch name is protected
-    if _app_state.policy and _app_state.policy.is_branch_protected(body.branch):
-        if _app_state.audit_logger:
-            _app_state.audit_logger.log(
-                agent=agent,
-                repo=body.repo,
-                action="create_branch",
-                status="denied",
-                error=f"Branch '{body.branch}' is protected",
-            )
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail={
-                "error": "forbidden",
-                "message": f"Cannot create protected branch '{body.branch}'",
-            },
-        )
-
-    # Create branch via GitHub client
-    if _app_state.github_client is None:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail={"error": "server_error", "message": "GitHub client not configured"},
-        )
+    agent = get_agent(request)
 
     try:
-        result = _app_state.github_client.create_branch(
+        result = service.create_branch(
+            agent=agent,
             repo=body.repo,
             branch=body.branch,
             base=body.base,
         )
 
-        # Log success
-        if _app_state.audit_logger:
-            _app_state.audit_logger.log(
-                agent=agent,
-                repo=body.repo,
-                action="create_branch",
-                status="success",
-            )
-
         return CreateBranchResponse(
             status="success",
-            branch=body.branch,
-            ref=result.get("ref", f"refs/heads/{body.branch}"),
+            branch=result.branch,
+            ref=result.ref,
         )
 
-    except Exception as e:
-        if _app_state.audit_logger:
-            _app_state.audit_logger.log(
-                agent=agent,
-                repo=body.repo,
-                action="create_branch",
-                status="denied",
-                error=str(e),
-            )
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail={"error": "server_error", "message": f"GitHub API error: {e}"},
-        )
+    except BranchCreationError as e:
+        raise handle_service_error(e)

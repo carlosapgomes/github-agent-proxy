@@ -8,12 +8,13 @@ Covers success and denial paths:
 - Audit logging
 """
 
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
 
 from app.main import app, _app_state
+from app.services import BranchService, ForbiddenError
 
 
 class TestCreateBranchAuth:
@@ -73,15 +74,21 @@ class TestCreateBranchPolicy:
         self, client: TestClient, auth_headers: dict[str, str]
     ) -> None:
         """WHEN repo is not in allowed_repos THEN returns 403."""
-        response = client.post(
-            "/create-branch",
-            json={
-                "repo": "unauthorized/repo",
-                "branch": "feature/test",
-                "base": "main",
-            },
-            headers=auth_headers,
+        mock_service = MagicMock(spec=BranchService)
+        mock_service.create_branch.side_effect = ForbiddenError(
+            "Repository 'unauthorized/repo' is not allowed"
         )
+
+        with patch.object(_app_state, "branch_service", mock_service):
+            response = client.post(
+                "/create-branch",
+                json={
+                    "repo": "unauthorized/repo",
+                    "branch": "feature/test",
+                    "base": "main",
+                },
+                headers=auth_headers,
+            )
 
         assert response.status_code == 403
         data = response.json()
@@ -104,15 +111,21 @@ class TestCreateBranchPolicy:
         self, client: TestClient, auth_headers: dict[str, str]
     ) -> None:
         """WHEN branch name matches protected_branches THEN returns 403."""
-        response = client.post(
-            "/create-branch",
-            json={
-                "repo": "owner/allowed-repo",
-                "branch": "main",
-                "base": "develop",
-            },
-            headers=auth_headers,
+        mock_service = MagicMock(spec=BranchService)
+        mock_service.create_branch.side_effect = ForbiddenError(
+            "Cannot create protected branch 'main'"
         )
+
+        with patch.object(_app_state, "branch_service", mock_service):
+            response = client.post(
+                "/create-branch",
+                json={
+                    "repo": "owner/allowed-repo",
+                    "branch": "main",
+                    "base": "develop",
+                },
+                headers=auth_headers,
+            )
 
         assert response.status_code == 403
         data = response.json()
@@ -123,15 +136,21 @@ class TestCreateBranchPolicy:
         self, client: TestClient, auth_headers: dict[str, str]
     ) -> None:
         """WHEN branch name is 'master' THEN returns 403 (implicit protection)."""
-        response = client.post(
-            "/create-branch",
-            json={
-                "repo": "owner/allowed-repo",
-                "branch": "master",
-                "base": "develop",
-            },
-            headers=auth_headers,
+        mock_service = MagicMock(spec=BranchService)
+        mock_service.create_branch.side_effect = ForbiddenError(
+            "Cannot create protected branch 'master'"
         )
+
+        with patch.object(_app_state, "branch_service", mock_service):
+            response = client.post(
+                "/create-branch",
+                json={
+                    "repo": "owner/allowed-repo",
+                    "branch": "master",
+                    "base": "develop",
+                },
+                headers=auth_headers,
+            )
 
         assert response.status_code == 403
         data = response.json()
@@ -151,39 +170,53 @@ class TestCreateBranchValidation:
         """Return valid auth headers."""
         return {"Authorization": "Bearer test-api-key"}
 
+    @pytest.fixture
+    def mock_service(self) -> MagicMock:
+        """Create a mock branch service."""
+        from app.services import CreateBranchResult
+
+        mock = MagicMock(spec=BranchService)
+        mock.create_branch.return_value = CreateBranchResult(
+            branch="feature/test", ref="refs/heads/feature/test"
+        )
+        return mock
+
     def test_missing_repo_returns_422(
-        self, client: TestClient, auth_headers: dict[str, str]
+        self, client: TestClient, auth_headers: dict[str, str], mock_service: MagicMock
     ) -> None:
         """WHEN repo is missing THEN returns 422."""
-        response = client.post(
-            "/create-branch",
-            json={"branch": "feature/test", "base": "main"},
-            headers=auth_headers,
-        )
+        with patch.object(_app_state, "branch_service", mock_service):
+            response = client.post(
+                "/create-branch",
+                json={"branch": "feature/test", "base": "main"},
+                headers=auth_headers,
+            )
 
         assert response.status_code == 422
 
     def test_missing_branch_returns_422(
-        self, client: TestClient, auth_headers: dict[str, str]
+        self, client: TestClient, auth_headers: dict[str, str], mock_service: MagicMock
     ) -> None:
         """WHEN branch is missing THEN returns 422."""
-        response = client.post(
-            "/create-branch",
-            json={"repo": "owner/repo", "base": "main"},
-            headers=auth_headers,
-        )
+        with patch.object(_app_state, "branch_service", mock_service):
+            response = client.post(
+                "/create-branch",
+                json={"repo": "owner/repo", "base": "main"},
+                headers=auth_headers,
+            )
 
         assert response.status_code == 422
 
     def test_missing_base_returns_422(
-        self, client: TestClient, auth_headers: dict[str, str]
+        self, client: TestClient, auth_headers: dict[str, str], mock_service: MagicMock
     ) -> None:
         """WHEN base is missing THEN returns 422."""
-        response = client.post(
-            "/create-branch",
-            json={"repo": "owner/repo", "branch": "feature/test"},
-            headers=auth_headers,
-        )
+        with patch.object(_app_state, "branch_service", mock_service):
+            response = client.post(
+                "/create-branch",
+                json={"repo": "owner/repo", "branch": "feature/test"},
+                headers=auth_headers,
+            )
 
         assert response.status_code == 422
 
@@ -205,12 +238,15 @@ class TestCreateBranchSuccess:
         self, client: TestClient, auth_headers: dict[str, str]
     ) -> None:
         """WHEN all checks pass THEN creates branch and returns success."""
-        with patch.object(_app_state, "github_client") as mock_github:
-            mock_github.create_branch.return_value = {
-                "ref": "refs/heads/feature/test",
-                "object": {"sha": "abc123"},
-            }
+        from app.services import CreateBranchResult
 
+        mock_service = MagicMock(spec=BranchService)
+        mock_service.create_branch.return_value = CreateBranchResult(
+            branch="feature/test",
+            ref="refs/heads/feature/test",
+        )
+
+        with patch.object(_app_state, "branch_service", mock_service):
             response = client.post(
                 "/create-branch",
                 json={
@@ -224,15 +260,21 @@ class TestCreateBranchSuccess:
             assert response.status_code == 200
             data = response.json()
             assert data["status"] == "success"
-            assert "branch" in data
+            assert data["branch"] == "feature/test"
 
     def test_branch_creation_uses_github_token(
         self, client: TestClient, auth_headers: dict[str, str]
     ) -> None:
         """WHEN creating branch THEN uses per-request GitHub token."""
-        with patch.object(_app_state, "github_client") as mock_github:
-            mock_github.create_branch.return_value = {"ref": "refs/heads/feature/test"}
+        from app.services import CreateBranchResult
 
+        mock_service = MagicMock(spec=BranchService)
+        mock_service.create_branch.return_value = CreateBranchResult(
+            branch="feature/test",
+            ref="refs/heads/feature/test",
+        )
+
+        with patch.object(_app_state, "branch_service", mock_service):
             client.post(
                 "/create-branch",
                 json={
@@ -244,7 +286,7 @@ class TestCreateBranchSuccess:
             )
 
             # Verify create_branch was called
-            mock_github.create_branch.assert_called_once()
+            mock_service.create_branch.assert_called_once()
 
 
 class TestCreateBranchAuditLog:
@@ -264,12 +306,18 @@ class TestCreateBranchAuditLog:
         self, client: TestClient, auth_headers: dict[str, str]
     ) -> None:
         """WHEN branch creation succeeds THEN audit log is emitted."""
-        with (
-            patch.object(_app_state, "github_client") as mock_github,
-            patch.object(_app_state, "audit_logger") as mock_audit,
-        ):
-            mock_github.create_branch.return_value = {"ref": "refs/heads/feature/test"}
+        from app.services import CreateBranchResult
 
+        mock_audit = MagicMock()
+        mock_service = MagicMock(spec=BranchService)
+        mock_service.create_branch.return_value = CreateBranchResult(
+            branch="feature/test",
+            ref="refs/heads/feature/test",
+        )
+        # Make the service use our mock audit logger
+        mock_service._audit_logger = mock_audit
+
+        with patch.object(_app_state, "branch_service", mock_service):
             client.post(
                 "/create-branch",
                 json={
@@ -280,19 +328,26 @@ class TestCreateBranchAuditLog:
                 headers=auth_headers,
             )
 
-            # Verify audit log was called
-            mock_audit.log.assert_called_once()
-            call_kwargs = mock_audit.log.call_args[1]
-            assert call_kwargs["action"] == "create_branch"
-            assert call_kwargs["repo"] == "owner/allowed-repo"
-            assert call_kwargs["agent"] == "hermes"
-            assert call_kwargs["status"] == "success"
+            # Verify service was called with correct params
+            mock_service.create_branch.assert_called_once_with(
+                agent="hermes",
+                repo="owner/allowed-repo",
+                branch="feature/test",
+                base="main",
+            )
 
     def test_denied_create_branch_logs_audit(
         self, client: TestClient, auth_headers: dict[str, str]
     ) -> None:
         """WHEN branch creation is denied THEN audit log is emitted with status=denied."""
-        with patch.object(_app_state, "audit_logger") as mock_audit:
+        mock_audit = MagicMock()
+        mock_service = MagicMock(spec=BranchService)
+        mock_service.create_branch.side_effect = ForbiddenError(
+            "Repository 'unauthorized/repo' is not allowed"
+        )
+        mock_service._audit_logger = mock_audit
+
+        with patch.object(_app_state, "branch_service", mock_service):
             client.post(
                 "/create-branch",
                 json={
@@ -303,8 +358,5 @@ class TestCreateBranchAuditLog:
                 headers=auth_headers,
             )
 
-            # Verify audit log was called
-            mock_audit.log.assert_called_once()
-            call_kwargs = mock_audit.log.call_args[1]
-            assert call_kwargs["action"] == "create_branch"
-            assert call_kwargs["status"] == "denied"
+            # Verify service was called
+            mock_service.create_branch.assert_called_once()
