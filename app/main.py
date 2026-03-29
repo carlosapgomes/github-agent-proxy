@@ -13,7 +13,7 @@ from pathlib import Path
 from fastapi import Depends, FastAPI, HTTPException, Request, status
 from fastapi.responses import JSONResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from app.audit import AuditLogger
 from app.auth import AuthGuard
@@ -22,6 +22,7 @@ from app.policy import Policy, PolicyLoader
 from app.services import (
     BranchService,
     CommitService,
+    PullRequestService,
     ServiceError,
 )
 
@@ -37,6 +38,7 @@ class AppState:
         self.github_client: GitHubClient | None = None
         self.branch_service: BranchService | None = None
         self.commit_service: CommitService | None = None
+        self.pr_service: PullRequestService | None = None
         self._initialized = False
 
     def initialize(self) -> None:
@@ -89,6 +91,11 @@ class AppState:
                 audit_logger=self.audit_logger,
             )
             self.commit_service = CommitService(
+                policy=self.policy,
+                github_client=self.github_client,
+                audit_logger=self.audit_logger,
+            )
+            self.pr_service = PullRequestService(
                 policy=self.policy,
                 github_client=self.github_client,
                 audit_logger=self.audit_logger,
@@ -224,6 +231,14 @@ def get_commit_service() -> CommitService:
     return _app_state.commit_service
 
 
+def get_pr_service() -> PullRequestService:
+    """Get the PR service from app state."""
+    _app_state.ensure_initialized()
+    if _app_state.pr_service is None:
+        raise RuntimeError("PR service not initialized")
+    return _app_state.pr_service
+
+
 def get_agent(request: Request) -> str:
     """Get the authenticated agent from request state."""
     return getattr(request.state, "agent", "unknown")
@@ -328,6 +343,76 @@ async def commit_files(
             status="success",
             sha=result.sha,
             message=result.message,
+        )
+
+    except ServiceError as e:
+        raise handle_service_error(e)
+
+
+class CreatePRRequest(BaseModel):
+    """Request model for create-pr endpoint."""
+
+    repo: str = Field(..., description="Repository in format 'owner/repo'")
+    title: str = Field(..., description="Pull request title")
+    body: str | None = Field(None, description="Pull request body/description")
+    head: str = Field(..., description="Head branch (source)")
+    base: str = Field(..., description="Base branch (target)")
+
+    @model_validator(mode="after")
+    def validate_head_not_equals_base(self) -> "CreatePRRequest":
+        """Validate that head != base."""
+        if self.head == self.base:
+            raise ValueError("head and base branches must be different")
+        return self
+
+
+class CreatePRResponse(BaseModel):
+    """Response model for successful PR creation."""
+
+    status: str = "success"
+    number: int
+    url: str
+
+
+@app.post("/create-pr", response_model=CreatePRResponse)
+async def create_pr(
+    request: Request,
+    body: CreatePRRequest,
+    _: None = Depends(require_auth),
+    service: PullRequestService = Depends(get_pr_service),
+) -> CreatePRResponse:
+    """Create a pull request in the specified repository.
+
+    Args:
+        request: FastAPI request object
+        body: Create PR request
+        _: Auth dependency (validates API key)
+        service: PR service dependency
+
+    Returns:
+        CreatePRResponse on success
+
+    Raises:
+        HTTPException: 403 if policy violation
+        HTTPException: 422 if validation error (head == base)
+        HTTPException: 500 if GitHub API error
+    """
+    agent = get_agent(request)
+
+    try:
+        result = service.create_pr(
+            agent=agent,
+            repo=body.repo,
+            title=body.title,
+            head=body.head,
+            base=body.base,
+            body=body.body,
+        )
+
+        return CreatePRResponse(
+            status="success",
+            number=result.number,
+            url=result.url,
         )
 
     except ServiceError as e:

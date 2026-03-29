@@ -285,3 +285,130 @@ class CommitService:
                 error=str(e),
             )
             raise ServerError(f"GitHub API error: {e}") from e
+
+
+@dataclass
+class CreatePRResult:
+    """Result of successful pull request creation."""
+
+    number: int
+    url: str
+    title: str
+
+
+class PullRequestService:
+    """Service for pull request operations.
+
+    Encapsulates policy enforcement, GitHub operations, and audit logging
+    for PR creation workflow.
+    """
+
+    def __init__(
+        self,
+        policy: Policy,
+        github_client: GitHubClient,
+        audit_logger: AuditLogger,
+    ) -> None:
+        """Initialize the PR service.
+
+        Args:
+            policy: Authorization policy
+            github_client: GitHub API client
+            audit_logger: Audit logger instance
+        """
+        self._policy = policy
+        self._github_client = github_client
+        self._audit_logger = audit_logger
+
+    def create_pr(
+        self,
+        agent: str,
+        repo: str,
+        title: str,
+        head: str,
+        base: str,
+        body: str | None = None,
+    ) -> CreatePRResult:
+        """Create a pull request with policy enforcement.
+
+        Args:
+            agent: Authenticated agent identity
+            repo: Target repository
+            title: PR title
+            head: Head branch (source)
+            base: Base branch (target)
+            body: Optional PR body/description
+
+        Returns:
+            CreatePRResult with PR details
+
+        Raises:
+            ForbiddenError: If policy denies the operation
+            ServerError: If GitHub API fails
+        """
+        # Check repo authorization
+        if not self._policy.is_repo_allowed(repo):
+            self._audit_logger.log(
+                agent=agent,
+                repo=repo,
+                action="create_pr",
+                status="denied",
+                error=f"Repository '{repo}' is not in allowed_repos",
+            )
+            raise ForbiddenError(f"Repository '{repo}' is not allowed")
+
+        # Check action authorization
+        if not self._policy.is_action_allowed("create_pr"):
+            self._audit_logger.log(
+                agent=agent,
+                repo=repo,
+                action="create_pr",
+                status="denied",
+                error="Action 'create_pr' is not in allowed_actions",
+            )
+            raise ForbiddenError("Action 'create_pr' is not allowed")
+
+        # Check protected head branch (cannot create PR FROM protected branch)
+        if self._policy.is_branch_protected(head):
+            self._audit_logger.log(
+                agent=agent,
+                repo=repo,
+                action="create_pr",
+                status="denied",
+                error=f"Branch '{head}' is protected",
+            )
+            raise ForbiddenError(f"Branch '{head}' is protected")
+
+        # Create PR via GitHub
+        try:
+            result = self._github_client.create_pr(
+                repo=repo,
+                title=title,
+                head=head,
+                base=base,
+                body=body,
+            )
+
+            # Log success
+            self._audit_logger.log(
+                agent=agent,
+                repo=repo,
+                action="create_pr",
+                status="success",
+            )
+
+            return CreatePRResult(
+                number=result["number"],
+                url=result["html_url"],
+                title=title,
+            )
+
+        except Exception as e:
+            self._audit_logger.log(
+                agent=agent,
+                repo=repo,
+                action="create_pr",
+                status="denied",
+                error=str(e),
+            )
+            raise ServerError(f"GitHub API error: {e}") from e

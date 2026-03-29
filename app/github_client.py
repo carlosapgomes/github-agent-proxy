@@ -385,3 +385,60 @@ class GitHubClient:
 
         except httpx.HTTPError as e:
             raise GitHubAPIError(f"GitHub API request failed: {e}") from e
+
+    def create_pr(
+        self,
+        repo: str,
+        title: str,
+        head: str,
+        base: str,
+        body: str | None = None,
+    ) -> dict:
+        """Create a pull request in a repository.
+
+        Args:
+            repo: Repository in format 'owner/repo'
+            title: PR title
+            head: Head branch (source)
+            base: Base branch (target)
+            body: Optional PR body/description
+
+        Returns:
+            GitHub API response with PR details
+
+        Raises:
+            GitHubAPIError: If the API request fails
+        """
+        token = self._token_provider.get_installation_token()
+
+        owner, repo_name = repo.split("/")
+        url = f"{self._GITHUB_API_URL}/repos/{owner}/{repo_name}/pulls"
+
+        headers = {
+            "Authorization": f"Bearer {token}",
+            "Accept": "application/vnd.github+json",
+            "X-GitHub-Api-Version": "2022-11-28",
+        }
+
+        payload = {
+            "title": title,
+            "head": head,
+            "base": base,
+        }
+        if body:
+            payload["body"] = body
+
+        try:
+            with httpx.Client() as client:
+                response = client.post(url, headers=headers, json=payload)
+
+                if response.status_code != 201:
+                    raise GitHubAPIError(
+                        f"Failed to create pull request: "
+                        f"status={response.status_code}, body={response.text}"
+                    )
+
+                return response.json()
+
+        except httpx.HTTPError as e:
+            raise GitHubAPIError(f"GitHub API request failed: {e}") from e
