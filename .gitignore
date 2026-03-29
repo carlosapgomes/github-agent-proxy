@@ -4,4 +4,12 @@ prompts/
 .env
 *.secret
 
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+*.so
+.venv/
+
 # OpenSpec artifacts should be versioned (active changes + archive)
