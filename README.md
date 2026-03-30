@@ -65,6 +65,7 @@ uv run uvicorn app.main:app --reload
 
 - [API Reference](docs/api.md) - Complete API documentation
 - [Policy Configuration](docs/policy.md) - Policy file configuration guide
+- [Agent Integration](docs/agent-integration.md) - How to configure Hermes and other agents
 - [AGENTS.md](AGENTS.md) - Development guidelines
 - [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md) - Project context and architecture
 
