@@ -1,6 +1,6 @@
 # Agent Integration Guide
 
-This guide explains how to configure Hermes (or any AI coding agent) to connect to and use the GitHub Agent Proxy.
+This guide explains how to configure agents to connect to and use the GitHub Agent Proxy.
 
 ## Overview
 
@@ -8,80 +8,332 @@ The GitHub Agent Proxy sits between your AI agent and GitHub, enforcing security
 
 ```
 ┌─────────────┐     ┌──────────────────┐     ┌─────────────┐
-│   Hermes    │────▶│  GitHub Agent    │────▶│   GitHub    │
-│   Agent     │     │     Proxy        │     │    API      │
+│   Agent     │────▶│  GitHub Agent    │────▶│   GitHub    │
+│             │     │     Proxy        │     │    API      │
 └─────────────┘     └──────────────────┘     └─────────────┘
 ```
 
-## Prerequisites
+## Integration Methods
 
-Before configuring the agent, ensure:
+| Method | Recommended For | Description |
+|--------|-----------------|-------------|
+| **Hermes Skill + CLI** | Hermes agent users | Built-in skill with deterministic CLI |
+| **Python Client** | Other agents, CI/CD, scripts | Direct HTTP client integration |
+
+---
+
+## Method 1: Hermes Skill + CLI (Recommended)
+
+If you're using Hermes agent, use the built-in skill located at `skills/github-proxy/`.
+
+### Why Use the Skill?
+
+| Benefit | Description |
+|---------|-------------|
+| **Zero configuration** | Skill auto-loads when needed |
+| **Deterministic output** | JSON responses, explicit exit codes |
+| **Secure by default** | Protected branch rules enforced |
+| **No dependencies** | CLI uses Python stdlib only |
+| **Progressive disclosure** | Common workflow first, edge cases later |
+
+### Prerequisites
 
 1. ✅ GitHub Agent Proxy is deployed and running
-2. ✅ You have the proxy URL (e.g., `http://localhost:8000` or `https://proxy.yourdomain.com`)
+2. ✅ You have the proxy URL (e.g., `http://localhost:8000`)
 3. ✅ You have an API key configured in the proxy
-4. ✅ Policy is configured for your repositories (`config/policy.yaml`)
+4. ✅ Policy is configured for your repositories
 
-## Environment Variables
+### Environment Variables
 
-### Required for the Agent
-
-Set these environment variables in your agent's configuration:
-
-| Variable | Description | Example |
-|----------|-------------|---------|
-| `GITHUB_PROXY_URL` | Base URL of the GitHub Agent Proxy | `http://localhost:8000` |
-| `GITHUB_PROXY_API_KEY` | API key for authentication | `sk-proxy-abc123...` |
-
-### Optional for the Agent
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `GITHUB_PROXY_TIMEOUT` | Request timeout in seconds | `30` |
-
-## Configuration
-
-### Hermes Configuration
-
-Add the following to your Hermes configuration (typically in `.hermes/config.yaml` or environment):
-
-```yaml
-# .hermes/config.yaml
-
-github:
-  # Point Hermes to the proxy instead of GitHub directly
-  proxy_url: ${GITHUB_PROXY_URL}
-  proxy_api_key: ${GITHUB_PROXY_API_KEY}
-  
-  # Disable direct GitHub access
-  direct_access: false
-```
-
-### Environment Setup
+Set these in your Hermes environment (Hermes will prompt securely if missing):
 
 ```bash
-# In your agent's environment or .env file
-
-# Proxy connection
-GITHUB_PROXY_URL=http://localhost:8000
-GITHUB_PROXY_API_KEY=your-api-key-here
-
-# Optional: Request timeout
-GITHUB_PROXY_TIMEOUT=30
-```
-
-### Shell Profile (bash/zsh)
-
-```bash
-# Add to ~/.bashrc or ~/.zshrc
-
+# Required
 export GITHUB_PROXY_URL="http://localhost:8000"
 export GITHUB_PROXY_API_KEY="your-api-key-here"
 ```
 
-## API Endpoints
+### CLI Reference
 
-The agent should use these endpoints instead of GitHub's API:
+The skill provides a CLI at `skills/github-proxy/scripts/github_proxy_cli.py`.
+
+#### Create Branch
+
+```bash
+python3 skills/github-proxy/scripts/github_proxy_cli.py create-branch \
+  --repo owner/repo \
+  --branch feature/my-feature \
+  --base main
+```
+
+**Output:**
+```json
+{"status": "success", "branch": "feature/my-feature", "ref": "refs/heads/feature/my-feature"}
+```
+
+#### Commit Files
+
+```bash
+python3 skills/github-proxy/scripts/github_proxy_cli.py commit-files \
+  --repo owner/repo \
+  --branch feature/my-feature \
+  --message "Add new feature" \
+  --file src/main.py:"print('hello')"
+```
+
+**Multiple files:**
+```bash
+python3 skills/github-proxy/scripts/github_proxy_cli.py commit-files \
+  --repo owner/repo \
+  --branch feature/my-feature \
+  --message "Add multiple files" \
+  --file src/main.py:"content1" \
+  --file src/utils.py:"content2"
+```
+
+**Output:**
+```json
+{"status": "success", "sha": "abc123...", "message": "Add new feature"}
+```
+
+#### Create Pull Request
+
+```bash
+python3 skills/github-proxy/scripts/github_proxy_cli.py create-pr \
+  --repo owner/repo \
+  --title "Add new feature" \
+  --head feature/my-feature \
+  --base main \
+  --body "Description of the feature"
+```
+
+**Output:**
+```json
+{"status": "success", "number": 42, "url": "https://github.com/owner/repo/pull/42"}
+```
+
+### Standard Workflow
+
+Follow this sequence for all code changes:
+
+**Step 1: Create Feature Branch**
+```bash
+python3 skills/github-proxy/scripts/github_proxy_cli.py create-branch \
+  --repo myorg/myproject \
+  --branch hermes/add-feature \
+  --base main
+```
+
+**Step 2: Commit Files**
+```bash
+python3 skills/github-proxy/scripts/github_proxy_cli.py commit-files \
+  --repo myorg/myproject \
+  --branch hermes/add-feature \
+  --message "Add new feature" \
+  --file src/feature.py:"# New feature\npass"
+```
+
+**Step 3: Create Pull Request**
+```bash
+python3 skills/github-proxy/scripts/github_proxy_cli.py create-pr \
+  --repo myorg/myproject \
+  --title "Add new feature" \
+  --head hermes/add-feature \
+  --base main \
+  --body "This PR adds a new feature."
+```
+
+### Error Handling
+
+All errors are returned as JSON with exit code 1:
+
+```json
+{"error": "forbidden", "message": "Branch 'main' is protected"}
+```
+
+| Error Code | Meaning | Solution |
+|------------|---------|----------|
+| `unauthorized` | Missing/invalid API key | Check `GITHUB_PROXY_API_KEY` |
+| `forbidden` | Policy violation | Use feature branch, check policy |
+| `validation_error` | Invalid request | Check required fields |
+| `http_error` | Proxy/GitHub error | Check logs, retry |
+| `connection_error` | Cannot reach proxy | Check `GITHUB_PROXY_URL` |
+
+### Branch Naming Conventions
+
+| Prefix | Purpose | Example |
+|--------|---------|---------|
+| `feature/` | New features | `feature/user-auth` |
+| `fix/` | Bug fixes | `fix/null-pointer` |
+| `hermes/` | Hermes changes | `hermes/add-config` |
+| `refactor/` | Code refactoring | `refactor/auth-module` |
+| `docs/` | Documentation | `docs/api-reference` |
+
+---
+
+## Method 2: Python Client (Code Integration)
+
+For other agents, CI/CD pipelines, or custom scripts, use direct HTTP integration.
+
+### When to Use
+
+- Non-Hermes agents (Claude, GPT, etc.)
+- CI/CD pipelines (GitHub Actions, GitLab CI)
+- Custom automation scripts
+- Integration into existing Python codebases
+
+### Prerequisites
+
+1. ✅ Python 3.12+
+2. ✅ `httpx` installed (`pip install httpx`)
+3. ✅ Proxy URL and API key
+
+### Environment Variables
+
+```bash
+export GITHUB_PROXY_URL="http://localhost:8000"
+export GITHUB_PROXY_API_KEY="your-api-key-here"
+```
+
+### Client Implementation
+
+```python
+import os
+import httpx
+
+
+class GitHubProxyClient:
+    """Client for interacting with GitHub Agent Proxy."""
+    
+    def __init__(self, base_url: str = None, api_key: str = None):
+        self.base_url = base_url or os.environ.get("GITHUB_PROXY_URL", "http://localhost:8000")
+        self.api_key = api_key or os.environ.get("GITHUB_PROXY_API_KEY")
+        
+        if not self.api_key:
+            raise ValueError("GITHUB_PROXY_API_KEY is required")
+        
+        self.headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json",
+        }
+    
+    def create_branch(self, repo: str, branch: str, base: str) -> dict:
+        """Create a new branch."""
+        response = httpx.post(
+            f"{self.base_url}/create-branch",
+            headers=self.headers,
+            json={"repo": repo, "branch": branch, "base": base},
+            timeout=30,
+        )
+        response.raise_for_status()
+        return response.json()
+    
+    def commit_files(self, repo: str, branch: str, message: str, files: list) -> dict:
+        """Commit files to a branch.
+        
+        Args:
+            repo: Repository (owner/repo)
+            branch: Target branch
+            message: Commit message
+            files: List of {"path": "...", "content": "..."}
+        """
+        response = httpx.post(
+            f"{self.base_url}/commit-files",
+            headers=self.headers,
+            json={"repo": repo, "branch": branch, "message": message, "files": files},
+            timeout=30,
+        )
+        response.raise_for_status()
+        return response.json()
+    
+    def create_pr(
+        self,
+        repo: str,
+        title: str,
+        head: str,
+        base: str,
+        body: str = None
+    ) -> dict:
+        """Create a pull request."""
+        payload = {"repo": repo, "title": title, "head": head, "base": base}
+        if body:
+            payload["body"] = body
+        
+        response = httpx.post(
+            f"{self.base_url}/create-pr",
+            headers=self.headers,
+            json=payload,
+            timeout=30,
+        )
+        response.raise_for_status()
+        return response.json()
+```
+
+### Usage Example
+
+```python
+from github_proxy_client import GitHubProxyClient
+
+# Initialize client
+client = GitHubProxyClient()
+
+# Create a feature branch
+result = client.create_branch(
+    repo="myorg/myrepo",
+    branch="feature/awesome-feature",
+    base="main"
+)
+print(f"Created branch: {result['branch']}")
+
+# Commit files
+result = client.commit_files(
+    repo="myorg/myrepo",
+    branch="feature/awesome-feature",
+    message="Add awesome feature",
+    files=[
+        {"path": "src/feature.py", "content": "# Awesome feature\npass"},
+        {"path": "tests/test_feature.py", "content": "# Test feature\npass"},
+    ]
+)
+print(f"Committed: {result['sha']}")
+
+# Create PR
+result = client.create_pr(
+    repo="myorg/myrepo",
+    title="Add awesome feature",
+    head="feature/awesome-feature",
+    base="main",
+    body="This PR adds an awesome feature."
+)
+print(f"Created PR: {result['url']}")
+```
+
+### Error Handling
+
+```python
+import httpx
+
+try:
+    result = client.commit_files(...)
+except httpx.HTTPStatusError as e:
+    error = e.response.json()
+    print(f"Error: {error['error']} - {error['message']}")
+    
+    if error['error'] == 'forbidden':
+        # Handle policy violation
+        if 'protected' in error['message']:
+            print("Cannot commit to protected branch")
+        elif 'not allowed' in error['message']:
+            print("Repository or action not in policy")
+    elif error['error'] == 'unauthorized':
+        print("Check API key")
+```
+
+---
+
+## API Endpoints Reference
+
+For direct HTTP integration, use these endpoints:
 
 ### Create Branch
 
@@ -130,96 +382,7 @@ Content-Type: application/json
 }
 ```
 
-## Example: Python Client
-
-```python
-import os
-import httpx
-
-class GitHubProxyClient:
-    """Client for interacting with GitHub Agent Proxy."""
-    
-    def __init__(self):
-        self.base_url = os.environ.get("GITHUB_PROXY_URL", "http://localhost:8000")
-        self.api_key = os.environ.get("GITHUB_PROXY_API_KEY")
-        
-        if not self.api_key:
-            raise ValueError("GITHUB_PROXY_API_KEY environment variable is required")
-        
-        self.headers = {
-            "Authorization": f"Bearer {self.api_key}",
-            "Content-Type": "application/json",
-        }
-    
-    def create_branch(self, repo: str, branch: str, base: str) -> dict:
-        """Create a new branch."""
-        response = httpx.post(
-            f"{self.base_url}/create-branch",
-            headers=self.headers,
-            json={"repo": repo, "branch": branch, "base": base},
-        )
-        response.raise_for_status()
-        return response.json()
-    
-    def commit_files(self, repo: str, branch: str, message: str, files: list) -> dict:
-        """Commit files to a branch."""
-        response = httpx.post(
-            f"{self.base_url}/commit-files",
-            headers=self.headers,
-            json={"repo": repo, "branch": branch, "message": message, "files": files},
-        )
-        response.raise_for_status()
-        return response.json()
-    
-    def create_pr(self, repo: str, title: str, head: str, base: str, body: str = None) -> dict:
-        """Create a pull request."""
-        payload = {"repo": repo, "title": title, "head": head, "base": base}
-        if body:
-            payload["body"] = body
-        
-        response = httpx.post(
-            f"{self.base_url}/create-pr",
-            headers=self.headers,
-            json=payload,
-        )
-        response.raise_for_status()
-        return response.json()
-
-
-# Usage example
-if __name__ == "__main__":
-    client = GitHubProxyClient()
-    
-    # Create a feature branch
-    result = client.create_branch(
-        repo="myorg/myrepo",
-        branch="feature/awesome-feature",
-        base="main"
-    )
-    print(f"Created branch: {result['branch']}")
-    
-    # Commit files
-    result = client.commit_files(
-        repo="myorg/myrepo",
-        branch="feature/awesome-feature",
-        message="Add awesome feature",
-        files=[
-            {"path": "src/feature.py", "content": "# Awesome feature\npass"},
-            {"path": "tests/test_feature.py", "content": "# Test awesome feature\npass"},
-        ]
-    )
-    print(f"Committed: {result['sha']}")
-    
-    # Create PR
-    result = client.create_pr(
-        repo="myorg/myrepo",
-        title="Add awesome feature",
-        head="feature/awesome-feature",
-        base="main",
-        body="This PR adds an awesome feature."
-    )
-    print(f"Created PR: {result['url']}")
-```
+---
 
 ## Testing the Connection
 
@@ -241,7 +404,7 @@ curl -X POST ${GITHUB_PROXY_URL}/create-branch \
   -H "Content-Type: application/json" \
   -d '{"repo": "owner/repo", "branch": "test-connection", "base": "main"}'
 
-# Expected success response:
+# Expected success:
 # {"status": "success", "branch": "test-connection", "ref": "refs/heads/test-connection"}
 
 # Expected auth failure:
@@ -279,6 +442,8 @@ curl -X POST ${GITHUB_PROXY_URL}/commit-files \
 # {"error": "forbidden", "message": "Branch 'main' is protected"}
 ```
 
+---
+
 ## Troubleshooting
 
 ### Connection Refused
@@ -300,7 +465,7 @@ uv run uvicorn app.main:app --reload
 
 **Solutions:**
 1. Verify `GITHUB_PROXY_API_KEY` is set
-2. Check the API key matches the one in the proxy's `API_KEY` environment variable
+2. Check the API key matches the proxy's `API_KEY` environment variable
 3. Ensure the header format is `Authorization: Bearer <key>`
 
 ### Forbidden (403)
@@ -321,9 +486,11 @@ Error: Request timed out after 30 seconds
 ```
 
 **Solutions:**
-1. Increase `GITHUB_PROXY_TIMEOUT`
+1. Increase timeout in client
 2. Check GitHub API status
 3. Check proxy logs for errors
+
+---
 
 ## Security Best Practices
 
@@ -346,6 +513,8 @@ Error: Request timed out after 30 seconds
 2. **Review policy regularly** - remove unused permissions
 3. **Audit logs** - monitor for suspicious activity
 
+---
+
 ## Production Checklist
 
 Before deploying to production:
@@ -356,11 +525,14 @@ Before deploying to production:
 - [ ] GitHub App has correct permissions
 - [ ] Audit logging is enabled
 - [ ] Network access is restricted appropriately
-- [ ] Agent timeout is configured appropriately
+- [ ] Timeout is configured appropriately
 - [ ] Error handling is tested
+
+---
 
 ## Related Documentation
 
 - [API Reference](api.md) - Complete endpoint documentation
 - [Policy Configuration](policy.md) - Policy file configuration
+- [Hermes Skill](../skills/github-proxy/SKILL.md) - Built-in skill documentation
 - [README](../README.md) - Project overview and setup
