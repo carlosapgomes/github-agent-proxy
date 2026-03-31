@@ -17,7 +17,7 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 
 from app.audit import AuditLogger
 from app.auth import AuthGuard
-from app.github_client import GitHubAppConfig, GitHubClient, TokenProvider
+from app.github_client import CommitAuthor, GitHubAppConfig, GitHubClient, TokenProvider
 from app.policy import Policy, PolicyLoader
 from app.services import (
     BranchService,
@@ -35,6 +35,7 @@ class AppState:
         self.auth_guard: AuthGuard | None = None
         self.audit_logger: AuditLogger | None = None
         self.token_provider: TokenProvider | None = None
+        self.commit_author: CommitAuthor | None = None
         self.github_client: GitHubClient | None = None
         self.branch_service: BranchService | None = None
         self.commit_service: CommitService | None = None
@@ -59,6 +60,8 @@ class AppState:
         # Initialize audit logger
         self.audit_logger = AuditLogger()
 
+        self.commit_author = self._load_commit_author_from_env()
+
         # Initialize GitHub token provider (if credentials are available)
         github_app_id = os.environ.get("GITHUB_APP_ID", "")
         github_private_key = os.environ.get("GITHUB_PRIVATE_KEY", "")
@@ -71,12 +74,31 @@ class AppState:
                 installation_id=github_installation_id,
             )
             self.token_provider = TokenProvider(github_config)
-            self.github_client = GitHubClient(token_provider=self.token_provider)
+            self.github_client = GitHubClient(
+                token_provider=self.token_provider,
+                commit_author=self.commit_author,
+            )
 
         # Initialize services
         self._init_services()
 
         self._initialized = True
+
+    def _load_commit_author_from_env(self) -> CommitAuthor | None:
+        """Load optional fixed commit author configuration from environment."""
+        author_name = os.environ.get("GITHUB_COMMIT_AUTHOR_NAME", "").strip()
+        author_email = os.environ.get("GITHUB_COMMIT_AUTHOR_EMAIL", "").strip()
+
+        if bool(author_name) != bool(author_email):
+            raise RuntimeError(
+                "GITHUB_COMMIT_AUTHOR_NAME and GITHUB_COMMIT_AUTHOR_EMAIL "
+                "must be set together"
+            )
+
+        if not author_name:
+            return None
+
+        return CommitAuthor(name=author_name, email=author_email)
 
     def _init_services(self) -> None:
         """Initialize service layer components."""

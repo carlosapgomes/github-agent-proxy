@@ -14,6 +14,20 @@ The GitHub Agent Proxy exposes three write endpoints for agent operations:
 
 All endpoints require authentication and are subject to policy authorization.
 
+## Optional Commit Author Attribution
+
+`POST /commit-files` can attach a fixed Git `author` identity when the proxy is started with both of these environment variables:
+
+```bash
+export GITHUB_COMMIT_AUTHOR_NAME="Your Name"
+export GITHUB_COMMIT_AUTHOR_EMAIL="123456+your-login@users.noreply.github.com"
+```
+
+Notes:
+- Both variables must be set together or the proxy fails fast at startup.
+- The configured email must already be associated with your GitHub account for commits to count toward your profile.
+- This changes the Git `author` metadata only; GitHub App authentication and protected-branch enforcement stay the same.
+
 ## Authentication
 
 All endpoints require a Bearer token in the `Authorization` header:

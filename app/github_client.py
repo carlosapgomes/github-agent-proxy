@@ -38,6 +38,13 @@ class GitHubAppConfig(BaseModel):
     installation_id: str
 
 
+class CommitAuthor(BaseModel):
+    """Fixed Git author metadata for proxy-created commits."""
+
+    name: str
+    email: str
+
+
 class TokenProvider:
     """Provides GitHub App installation tokens.
 
@@ -166,13 +173,19 @@ class GitHubClient:
 
     _GITHUB_API_URL = "https://api.github.com"
 
-    def __init__(self, token_provider: TokenProvider) -> None:
+    def __init__(
+        self,
+        token_provider: TokenProvider,
+        commit_author: CommitAuthor | None = None,
+    ) -> None:
         """Initialize the GitHub client.
 
         Args:
             token_provider: Provider for GitHub App installation tokens
+            commit_author: Optional fixed Git author metadata for commits
         """
         self._token_provider = token_provider
+        self._commit_author = commit_author
 
     def create_branch(self, repo: str, branch: str, base: str) -> dict:
         """Create a new branch in a repository.
@@ -346,14 +359,18 @@ class GitHubClient:
                 new_commit_url = (
                     f"{self._GITHUB_API_URL}/repos/{owner}/{repo_name}/git/commits"
                 )
+                commit_payload = {
+                    "message": message,
+                    "tree": new_tree_sha,
+                    "parents": [base_sha],
+                }
+                if self._commit_author is not None:
+                    commit_payload["author"] = self._commit_author.model_dump()
+
                 new_commit_response = client.post(
                     new_commit_url,
                     headers=headers,
-                    json={
-                        "message": message,
-                        "tree": new_tree_sha,
-                        "parents": [base_sha],
-                    },
+                    json=commit_payload,
                 )
 
                 if new_commit_response.status_code != 201:

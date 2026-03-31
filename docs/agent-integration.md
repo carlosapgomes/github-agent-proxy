@@ -53,6 +53,15 @@ export GITHUB_PROXY_URL="http://localhost:8000"
 export GITHUB_PROXY_API_KEY="your-api-key-here"
 ```
 
+If you operate the proxy yourself and want proxy-created commits to count toward your GitHub profile, set these on the **proxy service** environment:
+
+```bash
+export GITHUB_COMMIT_AUTHOR_NAME="Your Name"
+export GITHUB_COMMIT_AUTHOR_EMAIL="123456+your-login@users.noreply.github.com"
+```
+
+Both author variables must be configured together. Use an email already associated with your GitHub account (your verified address or GitHub `noreply` address).
+
 ### CLI Reference
 
 The skill provides a CLI at `skills/github-proxy/scripts/github_proxy_cli.py`.
