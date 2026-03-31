@@ -38,7 +38,9 @@ class MaintainProjectContextTests(unittest.TestCase):
     def test_check_mode(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            (root / "README.md").write_text("# X\n\ndesc suficiente para contexto.\n", encoding="utf-8")
+            (root / "README.md").write_text(
+                "# X\n\ndesc suficiente para contexto.\n", encoding="utf-8"
+            )
             (root / "PROJECT_CONTEXT.md").write_text("old\n", encoding="utf-8")
             run = subprocess.run(
                 ["python3", str(SCRIPT), "--project-root", str(root), "--check"],

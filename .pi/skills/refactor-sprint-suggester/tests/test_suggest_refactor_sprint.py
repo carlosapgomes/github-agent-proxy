@@ -33,7 +33,9 @@ class RefactorSprintSuggesterTests(unittest.TestCase):
     def test_detects_long_function_and_todo(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            long_body = "\n".join([f"    if x == {i}:\n        x += 1" for i in range(30)])
+            long_body = "\n".join(
+                [f"    if x == {i}:\n        x += 1" for i in range(30)]
+            )
             code = (
                 "def big(a, b, c, d, e, f, g):\n"
                 "    # TODO refactor this\n"
@@ -44,7 +46,14 @@ class RefactorSprintSuggesterTests(unittest.TestCase):
             (root / "mod.py").write_text(code, encoding="utf-8")
 
             run = subprocess.run(
-                ["python3", str(SCRIPT), "--project-root", str(root), "--format", "json"],
+                [
+                    "python3",
+                    str(SCRIPT),
+                    "--project-root",
+                    str(root),
+                    "--format",
+                    "json",
+                ],
                 capture_output=True,
                 text=True,
                 check=False,
@@ -68,7 +77,14 @@ class RefactorSprintSuggesterTests(unittest.TestCase):
             (root / "b.py").write_text(block, encoding="utf-8")
 
             run = subprocess.run(
-                ["python3", str(SCRIPT), "--project-root", str(root), "--format", "json"],
+                [
+                    "python3",
+                    str(SCRIPT),
+                    "--project-root",
+                    str(root),
+                    "--format",
+                    "json",
+                ],
                 capture_output=True,
                 text=True,
                 check=False,
@@ -81,7 +97,9 @@ class RefactorSprintSuggesterTests(unittest.TestCase):
     def test_write_output_report(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            (root / "x.py").write_text("# TODO: cleanup\nprint('x')\n", encoding="utf-8")
+            (root / "x.py").write_text(
+                "# TODO: cleanup\nprint('x')\n", encoding="utf-8"
+            )
 
             run = subprocess.run(
                 [
@@ -97,7 +115,7 @@ class RefactorSprintSuggesterTests(unittest.TestCase):
                 check=False,
             )
             self.assertEqual(run.returncode, 0, msg=run.stderr)
-            report = (root / "docs/refactor-report.md")
+            report = root / "docs/refactor-report.md"
             self.assertTrue(report.exists())
             self.assertIn("Top prioridades", report.read_text(encoding="utf-8"))
 

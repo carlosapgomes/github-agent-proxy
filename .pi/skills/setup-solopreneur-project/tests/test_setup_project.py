@@ -15,7 +15,15 @@ class SetupProjectTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             run = subprocess.run(
-                ["python3", str(SCRIPT), "--project-root", str(root), "--check", "--format", "json"],
+                [
+                    "python3",
+                    str(SCRIPT),
+                    "--project-root",
+                    str(root),
+                    "--check",
+                    "--format",
+                    "json",
+                ],
                 capture_output=True,
                 text=True,
                 check=False,
@@ -29,7 +37,13 @@ class SetupProjectTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             run = subprocess.run(
-                ["python3", str(SCRIPT), "--project-root", str(root), "--include-openspec"],
+                [
+                    "python3",
+                    str(SCRIPT),
+                    "--project-root",
+                    str(root),
+                    "--include-openspec",
+                ],
                 capture_output=True,
                 text=True,
                 check=False,
@@ -65,18 +79,37 @@ class SetupProjectTests(unittest.TestCase):
                 "Follow TDD cycle: RED (failing test) -> GREEN (minimal pass) -> REFACTOR (clean safely).",
                 agents,
             )
-            self.assertIn("Implementar uma task slice vertical por vez (end-to-end).", agents)
-            self.assertIn("Nao quebrar o trabalho em slice horizontal por camada sem entrega de fluxo completo.", agents)
+            self.assertIn(
+                "Implementar uma task slice vertical por vez (end-to-end).", agents
+            )
+            self.assertIn(
+                "Nao quebrar o trabalho em slice horizontal por camada sem entrega de fluxo completo.",
+                agents,
+            )
             self.assertIn(
                 "Antes de codar o change: design.md e obrigatorio, exceto QUICK de bugfix simples e reversivel.",
                 agents,
             )
-            self.assertIn("Fazer commit com mensagem rastreavel e dar push para branch remota.", agents)
+            self.assertIn(
+                "Fazer commit com mensagem rastreavel e dar push para branch remota.",
+                agents,
+            )
             self.assertIn("Push realizado para branch remota", agents)
-            self.assertIn("Nao iniciar o proximo slice sem confirmacao explicita do usuario.", agents)
+            self.assertIn(
+                "Nao iniciar o proximo slice sem confirmacao explicita do usuario.",
+                agents,
+            )
 
             check = subprocess.run(
-                ["python3", str(SCRIPT), "--project-root", str(root), "--check", "--format", "json"],
+                [
+                    "python3",
+                    str(SCRIPT),
+                    "--project-root",
+                    str(root),
+                    "--check",
+                    "--format",
+                    "json",
+                ],
                 capture_output=True,
                 text=True,
                 check=False,
@@ -89,7 +122,15 @@ class SetupProjectTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             run = subprocess.run(
-                ["python3", str(SCRIPT), "--project-root", str(root), "--dry-run", "--format", "json"],
+                [
+                    "python3",
+                    str(SCRIPT),
+                    "--project-root",
+                    str(root),
+                    "--dry-run",
+                    "--format",
+                    "json",
+                ],
                 capture_output=True,
                 text=True,
                 check=False,

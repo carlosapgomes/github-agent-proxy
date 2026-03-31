@@ -190,7 +190,9 @@ def detect_signals(text: str) -> Dict[str, bool]:
     return detected
 
 
-def compute_recommendation(signals: Dict[str, bool], threshold: int) -> Tuple[int, str, bool, List[str]]:
+def compute_recommendation(
+    signals: Dict[str, bool], threshold: int
+) -> Tuple[int, str, bool, List[str]]:
     score = sum(1 for v in signals.values() if v)
     reasons = [SIGNALS[k]["reason"] for k, ok in signals.items() if ok]
 
@@ -220,7 +222,9 @@ def next_adr_number(root: Path) -> int:
     return max_n + 1
 
 
-def build_adr_template(*, adr_id: str, title: str, change_id: Optional[str], reasons: Sequence[str]) -> str:
+def build_adr_template(
+    *, adr_id: str, title: str, change_id: Optional[str], reasons: Sequence[str]
+) -> str:
     reason_lines = "\n".join(f"- {r}" for r in reasons) if reasons else "- [preencher]"
     cid = change_id or "[preencher]"
     return (
@@ -249,7 +253,9 @@ def analyze(root: Path, change_id: Optional[str], threshold: int) -> AnalysisRes
     text = collect_change_text(root, selected) if selected else ""
 
     signals = detect_signals(text)
-    score, recommendation, should_create, reasons = compute_recommendation(signals, threshold=threshold)
+    score, recommendation, should_create, reasons = compute_recommendation(
+        signals, threshold=threshold
+    )
 
     if selected:
         title = title_from_change(selected, text)
@@ -259,7 +265,9 @@ def analyze(root: Path, change_id: Optional[str], threshold: int) -> AnalysisRes
     n = next_adr_number(root)
     adr_id = f"ADR-{n:04d}"
     adr_slug = slugify(title)
-    adr_path = (root / "docs" / "adr" / f"{adr_id}-{adr_slug}.md").relative_to(root).as_posix()
+    adr_path = (
+        (root / "docs" / "adr" / f"{adr_id}-{adr_slug}.md").relative_to(root).as_posix()
+    )
 
     return AnalysisResult(
         change_id=selected,
@@ -275,11 +283,19 @@ def analyze(root: Path, change_id: Optional[str], threshold: int) -> AnalysisRes
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Suggest ADR creation from active OpenSpec changes")
+    parser = argparse.ArgumentParser(
+        description="Suggest ADR creation from active OpenSpec changes"
+    )
     parser.add_argument("change_id", nargs="?", help="Active change ID (optional)")
     parser.add_argument("--project-root", default=".")
-    parser.add_argument("--threshold", type=int, default=2, help="Signals required to recommend ADR")
-    parser.add_argument("--auto-create", action="store_true", help="Create ADR file when recommendation is positive")
+    parser.add_argument(
+        "--threshold", type=int, default=2, help="Signals required to recommend ADR"
+    )
+    parser.add_argument(
+        "--auto-create",
+        action="store_true",
+        help="Create ADR file when recommendation is positive",
+    )
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--format", choices=["text", "json"], default="text")
     parser.add_argument(
@@ -314,7 +330,9 @@ def main() -> int:
         path.write_text(content, encoding="utf-8")
         created = True
 
-    policy_failed = args.fail_on == "recommendation" and result.should_create and not created
+    policy_failed = (
+        args.fail_on == "recommendation" and result.should_create and not created
+    )
 
     if args.format == "json":
         payload = {

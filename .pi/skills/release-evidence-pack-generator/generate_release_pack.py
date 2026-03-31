@@ -33,12 +33,16 @@ def normalize_version(version: str) -> str:
     return v if v.startswith("v") else f"v{v}"
 
 
-def collect_changes(root: Path, explicit: Sequence[str], max_changes: int) -> List[ChangeEntry]:
+def collect_changes(
+    root: Path, explicit: Sequence[str], max_changes: int
+) -> List[ChangeEntry]:
     if explicit:
         result: List[ChangeEntry] = []
         for cid in explicit:
             path = root / "openspec" / "changes" / "archive" / cid
-            result.append(ChangeEntry(change_id=cid, path=path.relative_to(root).as_posix()))
+            result.append(
+                ChangeEntry(change_id=cid, path=path.relative_to(root).as_posix())
+            )
         return result
 
     archive = root / "openspec" / "changes" / "archive"
@@ -50,7 +54,9 @@ def collect_changes(root: Path, explicit: Sequence[str], max_changes: int) -> Li
 
     entries: List[ChangeEntry] = []
     for d in dirs[:max_changes]:
-        entries.append(ChangeEntry(change_id=d.name, path=d.relative_to(root).as_posix()))
+        entries.append(
+            ChangeEntry(change_id=d.name, path=d.relative_to(root).as_posix())
+        )
     return entries
 
 
@@ -145,9 +151,13 @@ def render_markdown(
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Generate release evidence pack markdown")
+    parser = argparse.ArgumentParser(
+        description="Generate release evidence pack markdown"
+    )
     parser.add_argument("--project-root", default=".")
-    parser.add_argument("--version", required=True, help="Release version (e.g. v1.2.0)")
+    parser.add_argument(
+        "--version", required=True, help="Release version (e.g. v1.2.0)"
+    )
     parser.add_argument("--date", dest="release_date", default=str(date.today()))
     parser.add_argument("--previous-version", default="[preencher]")
     parser.add_argument("--output", help="Output markdown file path")

@@ -10,7 +10,7 @@ import argparse
 import json
 import re
 import subprocess
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
 from typing import Dict, List, Optional, Sequence, Tuple
@@ -49,7 +49,15 @@ EXIT_OK = 0
 EXIT_ERROR = 1
 EXIT_POLICY = 2
 
-ORDER = ["Added", "Changed", "Fixed", "Removed", "Security", "Documentation", "Maintenance"]
+ORDER = [
+    "Added",
+    "Changed",
+    "Fixed",
+    "Removed",
+    "Security",
+    "Documentation",
+    "Maintenance",
+]
 
 
 def run_git(root: Path, args: Sequence[str]) -> Tuple[int, str, str]:
@@ -71,7 +79,10 @@ def latest_tag(root: Path) -> Optional[str]:
 
 
 def parse_subject(subject: str, body: str) -> Tuple[str, Optional[str], bool, str]:
-    m = re.match(r"^(?P<type>[a-zA-Z0-9_-]+)(?:\((?P<scope>[^)]+)\))?(?P<bang>!)?:\s+(?P<desc>.+)$", subject)
+    m = re.match(
+        r"^(?P<type>[a-zA-Z0-9_-]+)(?:\((?P<scope>[^)]+)\))?(?P<bang>!)?:\s+(?P<desc>.+)$",
+        subject,
+    )
     breaking_by_body = "BREAKING CHANGE" in body.upper()
     if not m:
         return "other", None, breaking_by_body, subject.strip()
@@ -83,7 +94,9 @@ def parse_subject(subject: str, body: str) -> Tuple[str, Optional[str], bool, st
     return ctype, scope, breaking, desc
 
 
-def collect_commits(root: Path, from_ref: Optional[str], to_ref: str, include_merges: bool) -> Tuple[List[Commit], Optional[str]]:
+def collect_commits(
+    root: Path, from_ref: Optional[str], to_ref: str, include_merges: bool
+) -> Tuple[List[Commit], Optional[str]]:
     # Handle empty repositories gracefully.
     code, _, _ = run_git(root, ["rev-parse", "--verify", "HEAD"])
     if code != 0:
@@ -200,7 +213,9 @@ def upsert_section(content: str, heading: str, new_section: str) -> str:
     if not content.strip():
         content = default_changelog()
 
-    pattern = re.compile(rf"^({re.escape(heading)}\n(?:.*?))(?:^##\s|\Z)", re.MULTILINE | re.DOTALL)
+    pattern = re.compile(
+        rf"^({re.escape(heading)}\n(?:.*?))(?:^##\s|\Z)", re.MULTILINE | re.DOTALL
+    )
     m = pattern.search(content)
     if m:
         start, end = m.span(1)
@@ -216,14 +231,22 @@ def upsert_section(content: str, heading: str, new_section: str) -> str:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Generate/update CHANGELOG.md from git commits")
+    parser = argparse.ArgumentParser(
+        description="Generate/update CHANGELOG.md from git commits"
+    )
     parser.add_argument("--project-root", default=".", help="Repository root")
-    parser.add_argument("--output", default="CHANGELOG.md", help="Output changelog path")
+    parser.add_argument(
+        "--output", default="CHANGELOG.md", help="Output changelog path"
+    )
     parser.add_argument("--from-ref", help="Start ref (default: latest tag)")
     parser.add_argument("--to-ref", default="HEAD", help="End ref (default: HEAD)")
-    parser.add_argument("--release", help="Release version (e.g. v1.2.0). Default updates [Unreleased]")
+    parser.add_argument(
+        "--release", help="Release version (e.g. v1.2.0). Default updates [Unreleased]"
+    )
     parser.add_argument("--date", dest="release_date", help="Release date YYYY-MM-DD")
-    parser.add_argument("--include-merges", action="store_true", help="Include merge commits")
+    parser.add_argument(
+        "--include-merges", action="store_true", help="Include merge commits"
+    )
     parser.add_argument("--dry-run", action="store_true", help="Print section only")
     parser.add_argument("--format", choices=["text", "json"], default="text")
     parser.add_argument(
@@ -272,10 +295,16 @@ def main() -> int:
         else:
             print(section_md, end="")
             if policy_failed:
-                print("\n[changelog-updater] policy threshold reached: empty commit range")
+                print(
+                    "\n[changelog-updater] policy threshold reached: empty commit range"
+                )
         return EXIT_POLICY if policy_failed else EXIT_OK
 
-    current = output_path.read_text(encoding="utf-8") if output_path.exists() else default_changelog()
+    current = (
+        output_path.read_text(encoding="utf-8")
+        if output_path.exists()
+        else default_changelog()
+    )
     updated = upsert_section(current, heading, section_md)
     output_path.write_text(updated, encoding="utf-8")
 

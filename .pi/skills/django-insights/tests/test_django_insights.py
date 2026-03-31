@@ -48,7 +48,16 @@ class DjangoInsightsTests(unittest.TestCase):
             )
 
             run = subprocess.run(
-                ["python3", str(SCRIPT), "--project-root", str(root), "--format", "json", "--fail-on", "medium"],
+                [
+                    "python3",
+                    str(SCRIPT),
+                    "--project-root",
+                    str(root),
+                    "--format",
+                    "json",
+                    "--fail-on",
+                    "medium",
+                ],
                 capture_output=True,
                 text=True,
                 check=False,

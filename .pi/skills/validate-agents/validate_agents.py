@@ -13,7 +13,7 @@ import re
 import subprocess
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Iterable, List, Sequence
+from typing import List, Sequence
 
 EXIT_OK = 0
 EXIT_ERROR = 1
@@ -78,7 +78,15 @@ def git_list_files(project_root: Path, staged: bool) -> List[str]:
 
     if staged:
         proc = subprocess.run(
-            ["git", "-C", str(project_root), "diff", "--cached", "--name-only", "--diff-filter=ACMR"],
+            [
+                "git",
+                "-C",
+                str(project_root),
+                "diff",
+                "--cached",
+                "--name-only",
+                "--diff-filter=ACMR",
+            ],
             capture_output=True,
             text=True,
             check=False,
@@ -109,7 +117,9 @@ def git_list_files(project_root: Path, staged: bool) -> List[str]:
     return paths
 
 
-def discover_files(project_root: Path, requested: Sequence[str], staged: bool) -> List[Path]:
+def discover_files(
+    project_root: Path, requested: Sequence[str], staged: bool
+) -> List[Path]:
     if requested:
         candidates = [project_root / p for p in requested]
     else:
@@ -280,7 +290,11 @@ def find_python_ast_violations(text: str, rel: str) -> List[Violation]:
                 )
             )
 
-        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id == "print":
+        if (
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Name)
+            and node.func.id == "print"
+        ):
             violations.append(
                 Violation(
                     rule_id="print-call",
@@ -409,11 +423,21 @@ def render_text(
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Validate code against AGENTS.md anti-patterns")
-    parser.add_argument("files", nargs="*", help="Files to validate (default: modified files)")
+    parser = argparse.ArgumentParser(
+        description="Validate code against AGENTS.md anti-patterns"
+    )
+    parser.add_argument(
+        "files", nargs="*", help="Files to validate (default: modified files)"
+    )
     parser.add_argument("--project-root", default=".", help="Project root path")
-    parser.add_argument("--staged", action="store_true", help="Validate staged files when no files are provided")
-    parser.add_argument("--fix", action="store_true", help="Apply safe automatic fixes when possible")
+    parser.add_argument(
+        "--staged",
+        action="store_true",
+        help="Validate staged files when no files are provided",
+    )
+    parser.add_argument(
+        "--fix", action="store_true", help="Apply safe automatic fixes when possible"
+    )
     parser.add_argument("--format", choices=["text", "json"], default="text")
     parser.add_argument(
         "--fail-on",

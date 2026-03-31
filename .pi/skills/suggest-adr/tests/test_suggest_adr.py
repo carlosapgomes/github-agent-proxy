@@ -53,7 +53,15 @@ class SuggestAdrTests(unittest.TestCase):
             )
 
             run = subprocess.run(
-                ["python3", str(SCRIPT), "--project-root", str(root), "migrate-auth-db", "--format", "json"],
+                [
+                    "python3",
+                    str(SCRIPT),
+                    "--project-root",
+                    str(root),
+                    "migrate-auth-db",
+                    "--format",
+                    "json",
+                ],
                 capture_output=True,
                 text=True,
                 check=False,
@@ -66,10 +74,20 @@ class SuggestAdrTests(unittest.TestCase):
     def test_optional_for_low_signal_change(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            write_change(root, "fix-typo", "# Fix typo\n\nAjustar texto em mensagem de erro.")
+            write_change(
+                root, "fix-typo", "# Fix typo\n\nAjustar texto em mensagem de erro."
+            )
 
             run = subprocess.run(
-                ["python3", str(SCRIPT), "--project-root", str(root), "fix-typo", "--format", "json"],
+                [
+                    "python3",
+                    str(SCRIPT),
+                    "--project-root",
+                    str(root),
+                    "fix-typo",
+                    "--format",
+                    "json",
+                ],
                 capture_output=True,
                 text=True,
                 check=False,

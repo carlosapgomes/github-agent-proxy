@@ -70,7 +70,9 @@ class ClassifyRiskTests(unittest.TestCase):
             self.assertIn(run.returncode, (0, 2), msg=run.stderr)
             payload = json.loads(run.stdout)
             adjustments = payload["risk_assessment"].get("adjustment_factors", [])
-            self.assertTrue(any("segurança" in item or "seguranca" in item for item in adjustments))
+            self.assertTrue(
+                any("segurança" in item or "seguranca" in item for item in adjustments)
+            )
 
     def test_professional_default_exit_code_is_zero(self) -> None:
         run = subprocess.run(

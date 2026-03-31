@@ -11,7 +11,7 @@ import subprocess
 import sys
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Dict, List, Sequence, Tuple
+from typing import List, Sequence, Tuple
 
 
 REQUIRED_DIRS = [
@@ -221,10 +221,10 @@ def _markdown_format_script_fallback() -> str:
     return (
         "#!/usr/bin/env bash\n"
         "set -euo pipefail\n\n"
-        "REPO_ROOT=\"$(cd \"$(dirname \"$0\")/..\" && pwd)\"\n"
-        "cd \"$REPO_ROOT\"\n\n"
+        'REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"\n'
+        'cd "$REPO_ROOT"\n\n'
         "if ! command -v npx >/dev/null 2>&1; then\n"
-        "  echo \"Erro: npx nao encontrado. Instale Node.js/npm para formatar markdown.\" >&2\n"
+        '  echo "Erro: npx nao encontrado. Instale Node.js/npm para formatar markdown." >&2\n'
         "  exit 1\n"
         "fi\n\n"
         "mapfile -d '' files < <(find . -type f -name '*.md' \\\n"
@@ -234,13 +234,13 @@ def _markdown_format_script_fallback() -> str:
         "  -not -path './.git/*' \\\n"
         "  -print0)\n\n"
         "if [ ${#files[@]} -eq 0 ]; then\n"
-        "  echo \"Nenhum arquivo .md encontrado.\"\n"
+        '  echo "Nenhum arquivo .md encontrado."\n'
         "  exit 0\n"
         "fi\n\n"
-        "npx --yes prettier --write \"${files[@]}\"\n"
-        "npx --yes markdownlint-cli --fix \"${files[@]}\"\n"
-        "npx --yes markdownlint-cli \"${files[@]}\"\n\n"
-        "echo \"Markdown formatado e validado com sucesso.\"\n"
+        'npx --yes prettier --write "${files[@]}"\n'
+        'npx --yes markdownlint-cli --fix "${files[@]}"\n'
+        'npx --yes markdownlint-cli "${files[@]}"\n\n'
+        'echo "Markdown formatado e validado com sucesso."\n'
     )
 
 
@@ -248,10 +248,10 @@ def _markdown_lint_script_fallback() -> str:
     return (
         "#!/usr/bin/env bash\n"
         "set -euo pipefail\n\n"
-        "REPO_ROOT=\"$(cd \"$(dirname \"$0\")/..\" && pwd)\"\n"
-        "cd \"$REPO_ROOT\"\n\n"
+        'REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"\n'
+        'cd "$REPO_ROOT"\n\n'
         "if ! command -v npx >/dev/null 2>&1; then\n"
-        "  echo \"Erro: npx nao encontrado. Instale Node.js/npm para validar markdown.\" >&2\n"
+        '  echo "Erro: npx nao encontrado. Instale Node.js/npm para validar markdown." >&2\n'
         "  exit 1\n"
         "fi\n\n"
         "mapfile -d '' files < <(find . -type f -name '*.md' \\\n"
@@ -261,11 +261,11 @@ def _markdown_lint_script_fallback() -> str:
         "  -not -path './.git/*' \\\n"
         "  -print0)\n\n"
         "if [ ${#files[@]} -eq 0 ]; then\n"
-        "  echo \"Nenhum arquivo .md encontrado.\"\n"
+        '  echo "Nenhum arquivo .md encontrado."\n'
         "  exit 0\n"
         "fi\n\n"
-        "npx --yes markdownlint-cli \"${files[@]}\"\n\n"
-        "echo \"Markdown lint OK.\"\n"
+        'npx --yes markdownlint-cli "${files[@]}"\n\n'
+        'echo "Markdown lint OK."\n'
     )
 
 
@@ -273,10 +273,10 @@ def _pre_commit_hook_fallback() -> str:
     return (
         "#!/usr/bin/env bash\n"
         "set -euo pipefail\n\n"
-        "REPO_ROOT=\"$(git rev-parse --show-toplevel)\"\n"
-        "cd \"$REPO_ROOT\"\n\n"
+        'REPO_ROOT="$(git rev-parse --show-toplevel)"\n'
+        'cd "$REPO_ROOT"\n\n'
         "if ! command -v npx >/dev/null 2>&1; then\n"
-        "  echo \"Erro: npx nao encontrado. Instale Node.js/npm para rodar markdown lint no pre-commit.\" >&2\n"
+        '  echo "Erro: npx nao encontrado. Instale Node.js/npm para rodar markdown lint no pre-commit." >&2\n'
         "  exit 1\n"
         "fi\n\n"
         "mapfile -t staged_md < <(\n"
@@ -288,29 +288,31 @@ def _pre_commit_hook_fallback() -> str:
         "if [ ${#staged_md[@]} -eq 0 ]; then\n"
         "  exit 0\n"
         "fi\n\n"
-        "echo \"[pre-commit] Formatando e validando markdown staged...\"\n"
-        "npx --yes prettier --write \"${staged_md[@]}\"\n"
-        "npx --yes markdownlint-cli --fix \"${staged_md[@]}\"\n"
-        "npx --yes markdownlint-cli \"${staged_md[@]}\"\n"
-        "git add \"${staged_md[@]}\"\n\n"
-        "echo \"[pre-commit] Markdown OK.\"\n"
+        'echo "[pre-commit] Formatando e validando markdown staged..."\n'
+        'npx --yes prettier --write "${staged_md[@]}"\n'
+        'npx --yes markdownlint-cli --fix "${staged_md[@]}"\n'
+        'npx --yes markdownlint-cli "${staged_md[@]}"\n'
+        'git add "${staged_md[@]}"\n\n'
+        'echo "[pre-commit] Markdown OK."\n'
     )
 
 
 def _markdownlintignore_fallback() -> str:
-    return (
-        ".pi/**\n"
-        ".codex/**\n"
-        "node_modules/**\n"
-        ".git/**\n"
-    )
+    return ".pi/**\n.codex/**\nnode_modules/**\n.git/**\n"
 
 
 def _run_generator(script_path: Path, root: Path, output: str) -> bool:
     if not script_path.exists():
         return False
     proc = subprocess.run(
-        [sys.executable, str(script_path), "--project-root", str(root), "--output", output],
+        [
+            sys.executable,
+            str(script_path),
+            "--project-root",
+            str(root),
+            "--output",
+            output,
+        ],
         check=False,
         capture_output=True,
         text=True,
@@ -329,7 +331,9 @@ def ensure_dir(path: Path, dry_run: bool, ops: List[Operation]) -> None:
     ops.append(Operation("dir", str(path), "created", "created"))
 
 
-def ensure_file(path: Path, content: str, force: bool, dry_run: bool, ops: List[Operation]) -> None:
+def ensure_file(
+    path: Path, content: str, force: bool, dry_run: bool, ops: List[Operation]
+) -> None:
     if path.exists() and not force:
         ops.append(Operation("file", str(path), "exists", "kept existing"))
         return
@@ -362,7 +366,9 @@ def configure_git_hooks(root: Path, dry_run: bool, ops: List[Operation]) -> None
         ops.append(Operation("git", str(root), "skipped", "not a git repository"))
         return
     if dry_run:
-        ops.append(Operation("git", str(root), "planned", "would set core.hooksPath=.githooks"))
+        ops.append(
+            Operation("git", str(root), "planned", "would set core.hooksPath=.githooks")
+        )
         return
 
     proc = subprocess.run(
@@ -372,11 +378,19 @@ def configure_git_hooks(root: Path, dry_run: bool, ops: List[Operation]) -> None
         text=True,
     )
     if proc.returncode == 0:
-        ops.append(Operation("git", str(root), "updated", "configured core.hooksPath=.githooks"))
+        ops.append(
+            Operation(
+                "git", str(root), "updated", "configured core.hooksPath=.githooks"
+            )
+        )
         return
 
     error_msg = (proc.stderr or proc.stdout or "unknown error").strip()
-    ops.append(Operation("git", str(root), "warning", f"failed to configure hooks: {error_msg}"))
+    ops.append(
+        Operation(
+            "git", str(root), "warning", f"failed to configure hooks: {error_msg}"
+        )
+    )
 
 
 def ensure_gitignore(root: Path, dry_run: bool, ops: List[Operation]) -> None:
@@ -384,21 +398,30 @@ def ensure_gitignore(root: Path, dry_run: bool, ops: List[Operation]) -> None:
     current = _read_text(path).splitlines()
     missing = [line for line in GITIGNORE_LINES if line not in current]
     if not missing:
-        ops.append(Operation("file", str(path), "exists", "gitignore already contains required rules"))
+        ops.append(
+            Operation(
+                "file", str(path), "exists", "gitignore already contains required rules"
+            )
+        )
         return
     if dry_run:
-        ops.append(Operation("file", str(path), "planned", f"would append {len(missing)} rule(s)"))
+        ops.append(
+            Operation(
+                "file", str(path), "planned", f"would append {len(missing)} rule(s)"
+            )
+        )
         return
-    prefix = "\n" if path.exists() and _read_text(path) and not _read_text(path).endswith("\n") else ""
-    addition = (
-        prefix
-        + "\n# dev-loop bootstrap rules\n"
-        + "\n".join(missing)
-        + "\n"
+    prefix = (
+        "\n"
+        if path.exists() and _read_text(path) and not _read_text(path).endswith("\n")
+        else ""
     )
+    addition = prefix + "\n# dev-loop bootstrap rules\n" + "\n".join(missing) + "\n"
     with path.open("a", encoding="utf-8") as f:
         f.write(addition)
-    ops.append(Operation("file", str(path), "updated", f"appended {len(missing)} rule(s)"))
+    ops.append(
+        Operation("file", str(path), "updated", f"appended {len(missing)} rule(s)")
+    )
 
 
 def check_setup(root: Path) -> Tuple[bool, List[str]]:
@@ -417,7 +440,9 @@ def check_setup(root: Path) -> Tuple[bool, List[str]]:
     return (len(missing) == 0, missing)
 
 
-def run_setup(root: Path, include_openspec: bool, force: bool, dry_run: bool) -> List[Operation]:
+def run_setup(
+    root: Path, include_openspec: bool, force: bool, dry_run: bool
+) -> List[Operation]:
     ops: List[Operation] = []
 
     for rel in REQUIRED_DIRS:
@@ -429,7 +454,9 @@ def run_setup(root: Path, include_openspec: bool, force: bool, dry_run: bool) ->
     # Try generators first.
     skills_root = Path(__file__).resolve().parents[1]
     agents_gen = skills_root / "agents-md-generator" / "generate_agents_md.py"
-    context_gen = skills_root / "project-context-maintainer" / "maintain_project_context.py"
+    context_gen = (
+        skills_root / "project-context-maintainer" / "maintain_project_context.py"
+    )
 
     if not dry_run:
         generated_agents = _run_generator(agents_gen, root, "AGENTS.md")
@@ -439,14 +466,40 @@ def run_setup(root: Path, include_openspec: bool, force: bool, dry_run: bool) ->
         generated_context = False
 
     if generated_agents:
-        ops.append(Operation("file", str(root / "AGENTS.md"), "created", "generated via agents-md-generator"))
+        ops.append(
+            Operation(
+                "file",
+                str(root / "AGENTS.md"),
+                "created",
+                "generated via agents-md-generator",
+            )
+        )
     else:
-        ensure_file(root / "AGENTS.md", _agents_fallback(), force=force, dry_run=dry_run, ops=ops)
+        ensure_file(
+            root / "AGENTS.md",
+            _agents_fallback(),
+            force=force,
+            dry_run=dry_run,
+            ops=ops,
+        )
 
     if generated_context:
-        ops.append(Operation("file", str(root / "PROJECT_CONTEXT.md"), "created", "generated via project-context-maintainer"))
+        ops.append(
+            Operation(
+                "file",
+                str(root / "PROJECT_CONTEXT.md"),
+                "created",
+                "generated via project-context-maintainer",
+            )
+        )
     else:
-        ensure_file(root / "PROJECT_CONTEXT.md", _context_fallback(), force=force, dry_run=dry_run, ops=ops)
+        ensure_file(
+            root / "PROJECT_CONTEXT.md",
+            _context_fallback(),
+            force=force,
+            dry_run=dry_run,
+            ops=ops,
+        )
 
     ensure_file(
         root / "README.md",
@@ -533,12 +586,24 @@ def render_text(ops: Sequence[Operation], ok: bool, missing: Sequence[str]) -> s
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Bootstrap DevLoop SOP project structure")
+    parser = argparse.ArgumentParser(
+        description="Bootstrap DevLoop SOP project structure"
+    )
     parser.add_argument("--project-root", default=".", help="Project root")
-    parser.add_argument("--dry-run", action="store_true", help="Plan actions without writing")
-    parser.add_argument("--check", action="store_true", help="Check if expected structure exists")
-    parser.add_argument("--force", action="store_true", help="Overwrite generated files when possible")
-    parser.add_argument("--include-openspec", action="store_true", help="Create openspec base directories")
+    parser.add_argument(
+        "--dry-run", action="store_true", help="Plan actions without writing"
+    )
+    parser.add_argument(
+        "--check", action="store_true", help="Check if expected structure exists"
+    )
+    parser.add_argument(
+        "--force", action="store_true", help="Overwrite generated files when possible"
+    )
+    parser.add_argument(
+        "--include-openspec",
+        action="store_true",
+        help="Create openspec base directories",
+    )
     parser.add_argument("--format", choices=["text", "json"], default="text")
     args = parser.parse_args()
 

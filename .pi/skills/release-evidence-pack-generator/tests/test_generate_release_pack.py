@@ -34,10 +34,16 @@ class GenerateReleasePackTests(unittest.TestCase):
     def test_generates_markdown_file_with_detected_artifacts(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            (root / "openspec/changes/archive/change-a").mkdir(parents=True, exist_ok=True)
-            (root / "openspec/changes/archive/change-b").mkdir(parents=True, exist_ok=True)
+            (root / "openspec/changes/archive/change-a").mkdir(
+                parents=True, exist_ok=True
+            )
+            (root / "openspec/changes/archive/change-b").mkdir(
+                parents=True, exist_ok=True
+            )
             (root / "docs/adr").mkdir(parents=True, exist_ok=True)
-            (root / "docs/adr/ADR-0001-db.md").write_text("# ADR-0001: DB\n", encoding="utf-8")
+            (root / "docs/adr/ADR-0001-db.md").write_text(
+                "# ADR-0001: DB\n", encoding="utf-8"
+            )
 
             run = subprocess.run(
                 [

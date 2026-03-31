@@ -268,7 +268,7 @@ def extract_commands_from_agents(text: str) -> List[Tuple[str, str]]:
         inline = re.search(r"`([^`]+)`", line)
         if inline:
             label_match = re.match(r"^\s*[-*]\s*([^:]+):", line)
-            label = (label_match.group(1).strip().lower() if label_match else subsection)
+            label = label_match.group(1).strip().lower() if label_match else subsection
             commands.append((label, inline.group(1).strip()))
             continue
 
@@ -420,7 +420,9 @@ def check_active_change_artifacts(root: Path, rep: Reporter) -> None:
             rep.bump(category, "tasks_present")
 
         proposal_text = read_text(proposal)
-        design_required, declared_level, simple_bugfix = design_required_for_change(proposal_text)
+        design_required, declared_level, simple_bugfix = design_required_for_change(
+            proposal_text
+        )
 
         if declared_level == "QUICK" and not simple_bugfix:
             rep.add(
@@ -475,7 +477,9 @@ def check_specs_vs_code(root: Path, rep: Reporter, max_specs: int = 25) -> None:
 
     code_files = list(iter_files(root, CODE_EXTENSIONS))
     if not code_files:
-        rep.add("warning", category, "Nenhum arquivo de codigo encontrado para comparar")
+        rep.add(
+            "warning", category, "Nenhum arquivo de codigo encontrado para comparar"
+        )
         return
 
     code_contents = [(p, read_text(p).lower()) for p in code_files[:400]]
@@ -483,7 +487,9 @@ def check_specs_vs_code(root: Path, rep: Reporter, max_specs: int = 25) -> None:
 
     for spec_path in spec_files[:max_specs]:
         text = read_text(spec_path)
-        headings = " ".join([line for line in text.splitlines() if line.startswith("#")])
+        headings = " ".join(
+            [line for line in text.splitlines() if line.startswith("#")]
+        )
         terms = normalize_words(headings + " " + text, max_words=10)
         if not terms:
             rep.bump(category, "specs_without_terms")
@@ -537,7 +543,8 @@ def check_adrs_vs_implementation(root: Path, rep: Reporter, max_adrs: int = 25) 
     impl_files = list(
         iter_files(
             root,
-            CODE_EXTENSIONS | {".md", ".yml", ".yaml", ".toml", ".json", ".ini", ".cfg"},
+            CODE_EXTENSIONS
+            | {".md", ".yml", ".yaml", ".toml", ".json", ".ini", ".cfg"},
         )
     )
     impl_contents = [(p, read_text(p).lower()) for p in impl_files[:500]]
@@ -625,7 +632,11 @@ def check_agents(root: Path, rep: Reporter, run_commands: bool, timeout: int) ->
             if command_available(command):
                 rep.bump(category, "commands_declared")
             else:
-                rep.add("warning", category, f"Comando pode estar indisponivel ({label}): {command}")
+                rep.add(
+                    "warning",
+                    category,
+                    f"Comando pode estar indisponivel ({label}): {command}",
+                )
                 rep.bump(category, "commands_unavailable")
 
     py_match = re.search(r"Python:\s*([^\n]+)", text, re.IGNORECASE)
@@ -660,7 +671,9 @@ def check_project_context(root: Path, rep: Reporter) -> None:
 
     text = read_text(path).lower()
     if len(text) < 250:
-        rep.add("warning", category, "PROJECT_CONTEXT.md muito curto para retomada eficaz")
+        rep.add(
+            "warning", category, "PROJECT_CONTEXT.md muito curto para retomada eficaz"
+        )
 
     top_level_code_dirs = []
     for child in root.iterdir():
@@ -737,7 +750,9 @@ def render_text(result: CheckResult, root: Path) -> str:
     lines.append("")
 
     for finding in result.findings:
-        prefix = {"error": "[ERROR]", "warning": "[WARN]", "info": "[INFO]"}[finding.level]
+        prefix = {"error": "[ERROR]", "warning": "[WARN]", "info": "[INFO]"}[
+            finding.level
+        ]
         lines.append(f"{prefix} {finding.category}: {finding.message}")
         if finding.details:
             lines.append(f"  details: {finding.details}")
@@ -763,7 +778,9 @@ def render_markdown(result: CheckResult, root: Path) -> str:
     if not result.findings:
         out.append("- Nenhum finding.")
     for finding in result.findings:
-        out.append(f"- **{finding.level.upper()}** `{finding.category}`: {finding.message}")
+        out.append(
+            f"- **{finding.level.upper()}** `{finding.category}`: {finding.message}"
+        )
         if finding.details:
             out.append(f"  detalhes: {finding.details}")
         if finding.suggestion:
@@ -776,7 +793,9 @@ def render_markdown(result: CheckResult, root: Path) -> str:
     return "\n".join(out) + "\n"
 
 
-def run_checks(root: Path, run_commands: bool, timeout: int, max_specs: int, max_adrs: int) -> CheckResult:
+def run_checks(
+    root: Path, run_commands: bool, timeout: int, max_specs: int, max_adrs: int
+) -> CheckResult:
     rep = Reporter()
     check_required_files(root, rep)
     check_active_change_artifacts(root, rep)
@@ -789,21 +808,36 @@ def run_checks(root: Path, run_commands: bool, timeout: int, max_specs: int, max
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Check consistency among project artifacts")
+    parser = argparse.ArgumentParser(
+        description="Check consistency among project artifacts"
+    )
     parser.add_argument("--root", default=".", help="Project root")
-    parser.add_argument("--format", choices=["text", "json", "markdown"], default="text")
+    parser.add_argument(
+        "--format", choices=["text", "json", "markdown"], default="text"
+    )
     parser.add_argument(
         "--run-commands",
         action="store_true",
         help="Execute AGENTS commands (safe mode disabled)",
     )
-    parser.add_argument("--timeout", type=int, default=60, help="Timeout (seconds) for each AGENTS command")
-    parser.add_argument("--max-specs", type=int, default=25, help="Max spec files to inspect")
-    parser.add_argument("--max-adrs", type=int, default=25, help="Max ADR files to inspect")
+    parser.add_argument(
+        "--timeout",
+        type=int,
+        default=60,
+        help="Timeout (seconds) for each AGENTS command",
+    )
+    parser.add_argument(
+        "--max-specs", type=int, default=25, help="Max spec files to inspect"
+    )
+    parser.add_argument(
+        "--max-adrs", type=int, default=25, help="Max ADR files to inspect"
+    )
     args = parser.parse_args()
 
     root = Path(args.root).resolve()
-    result = run_checks(root, args.run_commands, args.timeout, args.max_specs, args.max_adrs)
+    result = run_checks(
+        root, args.run_commands, args.timeout, args.max_specs, args.max_adrs
+    )
 
     if args.format == "json":
         payload = {
@@ -812,7 +846,9 @@ def main() -> int:
             "findings": [asdict(item) for item in result.findings],
             "summary": {
                 "errors": sum(1 for item in result.findings if item.level == "error"),
-                "warnings": sum(1 for item in result.findings if item.level == "warning"),
+                "warnings": sum(
+                    1 for item in result.findings if item.level == "warning"
+                ),
                 "info": sum(1 for item in result.findings if item.level == "info"),
             },
         }

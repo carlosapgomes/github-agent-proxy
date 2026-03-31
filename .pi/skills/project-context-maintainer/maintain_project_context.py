@@ -7,7 +7,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Optional
@@ -125,7 +124,11 @@ def _discover_components(root: Path, max_components: int = 8) -> List[Component]
         if len(components) >= max_components:
             break
     if not components:
-        components.append(Component(name="root", description="Estrutura principal do projeto", location="."))
+        components.append(
+            Component(
+                name="root", description="Estrutura principal do projeto", location="."
+            )
+        )
     return components
 
 
@@ -133,7 +136,11 @@ def _detect_rules(root: Path) -> List[str]:
     rules: List[str] = []
     joined = "\n".join(
         _read_text(path)
-        for path in [root / "AGENTS.md", root / "README.md", root / "PROJECT_CONTEXT.md"]
+        for path in [
+            root / "AGENTS.md",
+            root / "README.md",
+            root / "PROJECT_CONTEXT.md",
+        ]
         if path.exists()
     ).lower()
     if "lgpd" in joined or "gdpr" in joined:
@@ -171,10 +178,10 @@ def _quality_bar(root: Path) -> List[str]:
 
 def build_context_model(root: Path) -> ContextModel:
     summary = _extract_readme_summary(root)
-    objective = summary or "Definir objetivo de negocio e comportamento principal do sistema."
-    purpose = (
-        "Resumo executivo para retomada rapida apos pausas e para onboarding de novos contribuidores."
+    objective = (
+        summary or "Definir objetivo de negocio e comportamento principal do sistema."
     )
+    purpose = "Resumo executivo para retomada rapida apos pausas e para onboarding de novos contribuidores."
     sources = _discover_authoritative_sources(root)
     components = _discover_components(root)
     rules = _detect_rules(root)
@@ -199,14 +206,18 @@ def render_context_markdown(model: ContextModel) -> str:
     lines.append("## Fontes Autoritativas")
     for source in model.authoritative_sources:
         lines.append(f"- `{source}`")
-    lines.append("- Em caso de conflito: specs/artefatos mais recentes no Git prevalecem.")
+    lines.append(
+        "- Em caso de conflito: specs/artefatos mais recentes no Git prevalecem."
+    )
     lines.append("")
     lines.append("## Objetivo do Sistema")
     lines.append(model.objective)
     lines.append("")
     lines.append("## Arquitetura de Alto Nivel")
     for component in model.components:
-        lines.append(f"- **{component.name}** ({component.location}): {component.description}.")
+        lines.append(
+            f"- **{component.name}** ({component.location}): {component.description}."
+        )
     lines.append("")
     lines.append("## Regras Nao Negociaveis")
     for rule in model.non_negotiable_rules:
@@ -221,10 +232,16 @@ def render_context_markdown(model: ContextModel) -> str:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Generate or update PROJECT_CONTEXT.md")
+    parser = argparse.ArgumentParser(
+        description="Generate or update PROJECT_CONTEXT.md"
+    )
     parser.add_argument("--project-root", default=".", help="Project root path")
-    parser.add_argument("--output", default="PROJECT_CONTEXT.md", help="Output file path")
-    parser.add_argument("--stdout", action="store_true", help="Print generated markdown")
+    parser.add_argument(
+        "--output", default="PROJECT_CONTEXT.md", help="Output file path"
+    )
+    parser.add_argument(
+        "--stdout", action="store_true", help="Print generated markdown"
+    )
     parser.add_argument(
         "--check",
         action="store_true",

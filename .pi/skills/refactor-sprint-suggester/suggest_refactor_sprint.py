@@ -185,7 +185,9 @@ def python_function_findings(path: Path, root: Path) -> List[Finding]:
     return findings
 
 
-def duplicate_block_findings(root: Path, min_lines: int = 4, include_tests: bool = False) -> List[Finding]:
+def duplicate_block_findings(
+    root: Path, min_lines: int = 4, include_tests: bool = False
+) -> List[Finding]:
     blocks: Dict[str, List[Tuple[str, int]]] = {}
 
     for p in iter_source_files(root, include_tests=include_tests):
@@ -235,7 +237,15 @@ def churn_hotspots(root: Path, include_tests: bool = False) -> List[Finding]:
         return []
 
     proc = subprocess.run(
-        ["git", "-C", str(root), "log", "--name-only", "--since=60 days ago", "--pretty=format:"],
+        [
+            "git",
+            "-C",
+            str(root),
+            "log",
+            "--name-only",
+            "--since=60 days ago",
+            "--pretty=format:",
+        ],
         capture_output=True,
         text=True,
         check=False,
@@ -317,12 +327,16 @@ def render_text(findings: Sequence[Finding], files_scanned: int, max_items: int)
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Suggest prioritized refactor sprint items")
+    parser = argparse.ArgumentParser(
+        description="Suggest prioritized refactor sprint items"
+    )
     parser.add_argument("--project-root", default=".")
     parser.add_argument("--format", choices=["text", "json"], default="text")
     parser.add_argument("--max-items", type=int, default=10)
     parser.add_argument("--output", help="Optional markdown output report path")
-    parser.add_argument("--include-tests", action="store_true", help="Include test files in analysis")
+    parser.add_argument(
+        "--include-tests", action="store_true", help="Include test files in analysis"
+    )
     parser.add_argument(
         "--fail-on",
         choices=["none", "critical", "high", "medium", "low"],
@@ -348,7 +362,9 @@ def main() -> int:
     findings.sort(key=lambda f: (f.score, f.severity), reverse=True)
 
     if args.output:
-        report = render_text(findings, files_scanned=len(files), max_items=args.max_items)
+        report = render_text(
+            findings, files_scanned=len(files), max_items=args.max_items
+        )
         out_path = (root / args.output).resolve()
         out_path.parent.mkdir(parents=True, exist_ok=True)
         out_path.write_text(report, encoding="utf-8")
@@ -373,7 +389,10 @@ def main() -> int:
         }
         print(json.dumps(payload, indent=2, ensure_ascii=False))
     else:
-        print(render_text(findings, files_scanned=len(files), max_items=args.max_items), end="")
+        print(
+            render_text(findings, files_scanned=len(files), max_items=args.max_items),
+            end="",
+        )
 
     return EXIT_POLICY if fail else EXIT_OK
 

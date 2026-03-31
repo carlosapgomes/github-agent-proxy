@@ -51,7 +51,14 @@ class ValidateAgentsTests(unittest.TestCase):
             )
 
             run = subprocess.run(
-                ["python3", str(SCRIPT), "--project-root", str(root), str(target), "--fix"],
+                [
+                    "python3",
+                    str(SCRIPT),
+                    "--project-root",
+                    str(root),
+                    str(target),
+                    "--fix",
+                ],
                 capture_output=True,
                 text=True,
                 check=False,

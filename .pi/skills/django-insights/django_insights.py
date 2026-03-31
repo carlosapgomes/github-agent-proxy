@@ -43,7 +43,14 @@ def iter_python_files(root: Path, app: str | None = None) -> Iterable[Path]:
     files: List[Path] = []
     for p in base.rglob("*.py"):
         posix = p.as_posix()
-        if "/.git/" in posix or "/node_modules/" in posix or "/.venv/" in posix or "/venv/" in posix or "/.pi/" in posix or "/.codex/" in posix:
+        if (
+            "/.git/" in posix
+            or "/node_modules/" in posix
+            or "/.venv/" in posix
+            or "/venv/" in posix
+            or "/.pi/" in posix
+            or "/.codex/" in posix
+        ):
             continue
         files.append(p)
     return files
@@ -149,7 +156,9 @@ def detect_view_performance(lines: Sequence[str], rel: str) -> List[Finding]:
 
         window = lines[i : min(i + 4, len(lines))]
         for j, nxt in enumerate(window, start=i + 1):
-            if re.search(r"\b\w+\.[a-zA-Z_]+\.[a-zA-Z_]+", nxt) and "select_related" not in "\n".join(window):
+            if re.search(
+                r"\b\w+\.[a-zA-Z_]+\.[a-zA-Z_]+", nxt
+            ) and "select_related" not in "\n".join(window):
                 findings.append(
                     Finding(
                         category="performance",
@@ -168,7 +177,9 @@ def should_include(category: str, focus: Set[str]) -> bool:
     return not focus or category in focus
 
 
-def render_text(findings: Sequence[Finding], focus: Set[str], files_scanned: int) -> str:
+def render_text(
+    findings: Sequence[Finding], focus: Set[str], files_scanned: int
+) -> str:
     lines: List[str] = []
     lines.append("django-insights report")
     lines.append("=" * 21)
@@ -192,14 +203,18 @@ def render_text(findings: Sequence[Finding], focus: Set[str], files_scanned: int
     lines.append("")
 
     for f in findings:
-        lines.append(f"- [{f.severity.upper()}] ({f.category}) {f.file}:{f.line} {f.message}")
+        lines.append(
+            f"- [{f.severity.upper()}] ({f.category}) {f.file}:{f.line} {f.message}"
+        )
         lines.append(f"  suggestion: {f.suggestion}")
 
     return "\n".join(lines) + "\n"
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Django diagnostics for performance/security/architecture")
+    parser = argparse.ArgumentParser(
+        description="Django diagnostics for performance/security/architecture"
+    )
     parser.add_argument("--project-root", default=".")
     parser.add_argument("--app", help="Optional app directory to scope analysis")
     parser.add_argument(
@@ -231,7 +246,9 @@ def main() -> int:
     threshold = args.fail_on
     failing = False
     if threshold != "none":
-        failing = any(SEVERITY_RANK[f.severity] >= SEVERITY_RANK[threshold] for f in filtered)
+        failing = any(
+            SEVERITY_RANK[f.severity] >= SEVERITY_RANK[threshold] for f in filtered
+        )
 
     if args.format == "json":
         payload = {

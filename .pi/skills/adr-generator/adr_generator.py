@@ -14,11 +14,12 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import sys
 import unicodedata
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Sequence, Tuple
+from typing import Dict, List, Sequence, Tuple
 
 
 ADR_NAME_PATTERN = re.compile(r"^ADR-(\d{4})(?:-.+)?\.md$", re.IGNORECASE)
@@ -74,7 +75,9 @@ def parse_adr_metadata(path: Path) -> AdrEntry:
         raise ValueError(f"invalid ADR name: {path.name}")
     number = int(match_num.group(1))
 
-    title_match = re.search(rf"^#\s*ADR-{number:04d}:\s*(.+)$", text, flags=re.MULTILINE | re.IGNORECASE)
+    title_match = re.search(
+        rf"^#\s*ADR-{number:04d}:\s*(.+)$", text, flags=re.MULTILINE | re.IGNORECASE
+    )
     title = title_match.group(1).strip() if title_match else path.stem
 
     status_match = re.search(r"^##\s*Status\s*$\n([^\n]+)", text, flags=re.MULTILINE)
@@ -85,7 +88,9 @@ def parse_adr_metadata(path: Path) -> AdrEntry:
 
     timestamp = path.stat().st_mtime
     date = datetime.fromtimestamp(timestamp).strftime("%Y-%m-%d")
-    return AdrEntry(number=number, file_name=path.name, title=title, status=status, date=date)
+    return AdrEntry(
+        number=number, file_name=path.name, title=title, status=status, date=date
+    )
 
 
 def build_adr_content(
@@ -180,7 +185,7 @@ def build_index_content(entries: Sequence[AdrEntry]) -> str:
 
     lines.append("")
     lines.append("## Como criar uma nova ADR")
-    lines.append("1. Execute `python3 adr_generator.py --title \"Sua decisao\"`")
+    lines.append('1. Execute `python3 adr_generator.py --title "Sua decisao"`')
     lines.append("2. Revise contexto, decisao, alternativas e consequencias")
     lines.append("3. Commit da ADR junto do change relacionado")
     lines.append("")
@@ -234,7 +239,9 @@ def create_adr(
 def main() -> int:
     parser = argparse.ArgumentParser(description="Create and maintain ADRs")
     parser.add_argument("--project-root", default=".", help="Project root")
-    parser.add_argument("--adr-dir", default="docs/adr", help="ADR directory (relative to project root)")
+    parser.add_argument(
+        "--adr-dir", default="docs/adr", help="ADR directory (relative to project root)"
+    )
     parser.add_argument("--title", help="ADR title")
     parser.add_argument("--status", default="Proposed", help="ADR status")
     parser.add_argument(
@@ -247,15 +254,44 @@ def main() -> int:
         default="[Descreva claramente a decisao tomada e escopo]",
         help="Decision section text",
     )
-    parser.add_argument("--alternative", action="append", default=[], help="Alternative option (repeatable)")
-    parser.add_argument("--positive", action="append", default=[], help="Positive consequence (repeatable)")
-    parser.add_argument("--negative", action="append", default=[], help="Negative consequence (repeatable)")
-    parser.add_argument("--risk", action="append", default=[], help="Risk/mitigation entry (repeatable)")
-    parser.add_argument("--list-next", action="store_true", help="Only print next ADR number")
-    parser.add_argument("--reindex", action="store_true", help="Rebuild docs/adr/README.md from ADR files")
-    parser.add_argument("--no-index", action="store_true", help="Do not update index after creation")
-    parser.add_argument("--dry-run", action="store_true", help="Plan only, do not write")
-    parser.add_argument("--force", action="store_true", help="Overwrite if target ADR path exists")
+    parser.add_argument(
+        "--alternative",
+        action="append",
+        default=[],
+        help="Alternative option (repeatable)",
+    )
+    parser.add_argument(
+        "--positive",
+        action="append",
+        default=[],
+        help="Positive consequence (repeatable)",
+    )
+    parser.add_argument(
+        "--negative",
+        action="append",
+        default=[],
+        help="Negative consequence (repeatable)",
+    )
+    parser.add_argument(
+        "--risk", action="append", default=[], help="Risk/mitigation entry (repeatable)"
+    )
+    parser.add_argument(
+        "--list-next", action="store_true", help="Only print next ADR number"
+    )
+    parser.add_argument(
+        "--reindex",
+        action="store_true",
+        help="Rebuild docs/adr/README.md from ADR files",
+    )
+    parser.add_argument(
+        "--no-index", action="store_true", help="Do not update index after creation"
+    )
+    parser.add_argument(
+        "--dry-run", action="store_true", help="Plan only, do not write"
+    )
+    parser.add_argument(
+        "--force", action="store_true", help="Overwrite if target ADR path exists"
+    )
     parser.add_argument("--format", choices=["text", "json"], default="text")
     args = parser.parse_args()
 
@@ -278,7 +314,10 @@ def main() -> int:
 
     if args.list_next:
         number = next_number(adr_dir)
-        payload = {"next_number": number, "suggested_file": f"ADR-{number:04d}-<slug>.md"}
+        payload = {
+            "next_number": number,
+            "suggested_file": f"ADR-{number:04d}-<slug>.md",
+        }
         if args.format == "json":
             print(json.dumps(payload, indent=2, ensure_ascii=False))
         else:
@@ -295,7 +334,9 @@ def main() -> int:
         if args.format == "json":
             print(json.dumps(payload, indent=2, ensure_ascii=False))
         else:
-            print(f"[adr-generator] index {'planned' if args.dry_run else 'updated'}: {readme}")
+            print(
+                f"[adr-generator] index {'planned' if args.dry_run else 'updated'}: {readme}"
+            )
         return 0
 
     if not args.title:

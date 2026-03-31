@@ -176,9 +176,7 @@ def main() -> None:
     create_branch_parser.add_argument(
         "--repo", required=True, help="Repository (owner/repo)"
     )
-    create_branch_parser.add_argument(
-        "--branch", required=True, help="New branch name"
-    )
+    create_branch_parser.add_argument("--branch", required=True, help="New branch name")
     create_branch_parser.add_argument(
         "--base", required=True, help="Base branch to create from"
     )
@@ -194,9 +192,7 @@ def main() -> None:
     commit_files_parser.add_argument(
         "--branch", required=True, help="Target branch name"
     )
-    commit_files_parser.add_argument(
-        "--message", required=True, help="Commit message"
-    )
+    commit_files_parser.add_argument("--message", required=True, help="Commit message")
     commit_files_parser.add_argument(
         "--file",
         required=True,
@@ -206,19 +202,13 @@ def main() -> None:
     commit_files_parser.set_defaults(func=cmd_commit_files)
 
     # create-pr subcommand
-    create_pr_parser = subparsers.add_parser(
-        "create-pr", help="Create a pull request"
-    )
+    create_pr_parser = subparsers.add_parser("create-pr", help="Create a pull request")
     create_pr_parser.add_argument(
         "--repo", required=True, help="Repository (owner/repo)"
     )
     create_pr_parser.add_argument("--title", required=True, help="PR title")
-    create_pr_parser.add_argument(
-        "--head", required=True, help="Head branch (source)"
-    )
-    create_pr_parser.add_argument(
-        "--base", required=True, help="Base branch (target)"
-    )
+    create_pr_parser.add_argument("--head", required=True, help="Head branch (source)")
+    create_pr_parser.add_argument("--base", required=True, help="Base branch (target)")
     create_pr_parser.add_argument("--body", help="PR body/description")
     create_pr_parser.set_defaults(func=cmd_create_pr)
 

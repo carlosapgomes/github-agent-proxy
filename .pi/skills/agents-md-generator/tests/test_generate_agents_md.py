@@ -28,13 +28,33 @@ class GenerateAgentsMdTests(unittest.TestCase):
             self.assertIn("## 2. Comandos de Validacao", content)
             self.assertIn("python3 manage.py check", content)
             self.assertIn("python3 -m pytest -q", content)
-            self.assertIn("TDD obrigatorio: RED (teste falha) -> GREEN (minimo para passar) -> REFACTOR (limpeza sem quebrar).", content)
-            self.assertIn("Follow TDD cycle: RED (failing test) -> GREEN (minimal pass) -> REFACTOR (clean safely).", content)
-            self.assertIn("Implementar uma task slice vertical por vez (end-to-end).", content)
-            self.assertIn("Nao quebrar o trabalho em slice horizontal por camada sem entrega de fluxo completo.", content)
-            self.assertIn("design.md e obrigatorio, exceto QUICK de bugfix simples e reversivel.", content)
-            self.assertIn("Fazer commit com mensagem rastreavel e dar push para branch remota.", content)
-            self.assertIn("Nao iniciar o proximo slice sem confirmacao explicita do usuario.", content)
+            self.assertIn(
+                "TDD obrigatorio: RED (teste falha) -> GREEN (minimo para passar) -> REFACTOR (limpeza sem quebrar).",
+                content,
+            )
+            self.assertIn(
+                "Follow TDD cycle: RED (failing test) -> GREEN (minimal pass) -> REFACTOR (clean safely).",
+                content,
+            )
+            self.assertIn(
+                "Implementar uma task slice vertical por vez (end-to-end).", content
+            )
+            self.assertIn(
+                "Nao quebrar o trabalho em slice horizontal por camada sem entrega de fluxo completo.",
+                content,
+            )
+            self.assertIn(
+                "design.md e obrigatorio, exceto QUICK de bugfix simples e reversivel.",
+                content,
+            )
+            self.assertIn(
+                "Fazer commit com mensagem rastreavel e dar push para branch remota.",
+                content,
+            )
+            self.assertIn(
+                "Nao iniciar o proximo slice sem confirmacao explicita do usuario.",
+                content,
+            )
             self.assertIn("Push realizado para branch remota", content)
 
     def test_includes_markdown_and_hook_commands_when_present(self) -> None:
@@ -42,9 +62,15 @@ class GenerateAgentsMdTests(unittest.TestCase):
             root = Path(tmp)
             (root / "scripts").mkdir(parents=True, exist_ok=True)
             (root / ".githooks").mkdir(parents=True, exist_ok=True)
-            (root / "scripts/markdown-format.sh").write_text("#!/usr/bin/env bash\n", encoding="utf-8")
-            (root / "scripts/markdown-lint.sh").write_text("#!/usr/bin/env bash\n", encoding="utf-8")
-            (root / ".githooks/pre-commit").write_text("#!/usr/bin/env bash\n", encoding="utf-8")
+            (root / "scripts/markdown-format.sh").write_text(
+                "#!/usr/bin/env bash\n", encoding="utf-8"
+            )
+            (root / "scripts/markdown-lint.sh").write_text(
+                "#!/usr/bin/env bash\n", encoding="utf-8"
+            )
+            (root / ".githooks/pre-commit").write_text(
+                "#!/usr/bin/env bash\n", encoding="utf-8"
+            )
 
             run = subprocess.run(
                 ["python3", str(SCRIPT), "--project-root", str(root)],

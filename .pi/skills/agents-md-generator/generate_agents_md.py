@@ -101,7 +101,10 @@ def detect_stack(root: Path) -> ProjectInfo:
     pyproject = _load_pyproject(root)
     package_json = _load_package_json(root)
 
-    has_python = any((root / marker).exists() for marker in ["pyproject.toml", "requirements.txt", "manage.py"])
+    has_python = any(
+        (root / marker).exists()
+        for marker in ["pyproject.toml", "requirements.txt", "manage.py"]
+    )
     has_node = (root / "package.json").exists()
     has_go = (root / "go.mod").exists()
     has_java = any((root / marker).exists() for marker in ["pom.xml", "build.gradle"])
@@ -120,7 +123,10 @@ def detect_stack(root: Path) -> ProjectInfo:
         framework = "Django"
         django_version = _extract_django_version(pyproject, root)
     elif has_node:
-        deps = {**package_json.get("dependencies", {}), **package_json.get("devDependencies", {})}
+        deps = {
+            **package_json.get("dependencies", {}),
+            **package_json.get("devDependencies", {}),
+        }
         if "next" in deps:
             framework = "Next.js"
         elif "react" in deps:
@@ -135,7 +141,9 @@ def detect_stack(root: Path) -> ProjectInfo:
 
     validation_commands = infer_validation_commands(root, has_python, has_node)
     essential_commands = infer_essential_commands(root, has_python, has_node, framework)
-    architecture_constraints = infer_architecture_constraints(root, framework, has_python, has_node)
+    architecture_constraints = infer_architecture_constraints(
+        root, framework, has_python, has_node
+    )
     anti_patterns = infer_anti_patterns(framework, has_python, has_node)
 
     return ProjectInfo(
@@ -154,9 +162,7 @@ def detect_stack(root: Path) -> ProjectInfo:
 
 def _extract_python_version(pyproject: Dict, root: Path) -> Optional[str]:
     requires_python = (
-        pyproject.get("project", {}).get("requires-python")
-        if pyproject
-        else None
+        pyproject.get("project", {}).get("requires-python") if pyproject else None
     )
     if isinstance(requires_python, str) and requires_python.strip():
         return requires_python.strip()
@@ -218,7 +224,9 @@ def _cmd_exists(name: str) -> bool:
     )
 
 
-def infer_validation_commands(root: Path, has_python: bool, has_node: bool) -> List[Tuple[str, str]]:
+def infer_validation_commands(
+    root: Path, has_python: bool, has_node: bool
+) -> List[Tuple[str, str]]:
     commands: List[Tuple[str, str]] = []
 
     if (root / "scripts" / "markdown-format.sh").exists():
@@ -227,7 +235,10 @@ def infer_validation_commands(root: Path, has_python: bool, has_node: bool) -> L
         commands.append(("Markdown (lint)", "./scripts/markdown-lint.sh"))
 
     if has_python:
-        if any((root / file_name).exists() for file_name in ["pytest.ini", "pyproject.toml", "tox.ini"]):
+        if any(
+            (root / file_name).exists()
+            for file_name in ["pytest.ini", "pyproject.toml", "tox.ini"]
+        ):
             commands.append(("Testes", "python3 -m pytest -q"))
         elif (root / "manage.py").exists():
             commands.append(("Testes", "python3 manage.py test"))
@@ -238,7 +249,9 @@ def infer_validation_commands(root: Path, has_python: bool, has_node: bool) -> L
             commands.append(("Type check", "mypy ."))
         if (root / "manage.py").exists():
             commands.append(("Build", "python3 manage.py check"))
-            commands.append(("Migracoes", "python3 manage.py makemigrations --check --dry-run"))
+            commands.append(
+                ("Migracoes", "python3 manage.py makemigrations --check --dry-run")
+            )
         elif (root / "pyproject.toml").exists():
             commands.append(("Build", "python3 -m build"))
 
@@ -286,7 +299,10 @@ def infer_essential_commands(
         else:
             essentials["Rodar local"] = ["python3 -m <seu_modulo_principal>"]
 
-        if any((root / item).exists() for item in ["pytest.ini", "pyproject.toml", "tox.ini"]):
+        if any(
+            (root / item).exists()
+            for item in ["pytest.ini", "pyproject.toml", "tox.ini"]
+        ):
             essentials["Testes rapidos"] = ["python3 -m pytest -q tests/unit"]
             essentials["Testes completos"] = ["python3 -m pytest -q"]
         elif (root / "manage.py").exists():
@@ -302,7 +318,9 @@ def infer_essential_commands(
             if "test" in scripts:
                 essentials["Testes JS"] = ["npm test"]
 
-    if (root / "scripts" / "markdown-format.sh").exists() or (root / "scripts" / "markdown-lint.sh").exists():
+    if (root / "scripts" / "markdown-format.sh").exists() or (
+        root / "scripts" / "markdown-lint.sh"
+    ).exists():
         doc_cmds: List[str] = []
         if (root / "scripts" / "markdown-format.sh").exists():
             doc_cmds.append("./scripts/markdown-format.sh")
@@ -314,7 +332,10 @@ def infer_essential_commands(
         essentials["Hooks"] = ["git config core.hooksPath .githooks"]
 
     if not essentials:
-        essentials["Operacao basica"] = ["git status --short", "git branch --show-current"]
+        essentials["Operacao basica"] = [
+            "git status --short",
+            "git branch --show-current",
+        ]
     return essentials
 
 
@@ -340,16 +361,22 @@ def infer_architecture_constraints(
         )
 
     if has_python and not constraints:
-        constraints.append("Organizar logica por modulo/cohesao; evitar funcoes gigantes.")
+        constraints.append(
+            "Organizar logica por modulo/cohesao; evitar funcoes gigantes."
+        )
     if has_node and framework == "Express":
         constraints.append("Rotas finas, servicos testaveis, acesso a dados isolado.")
 
     if not constraints:
-        constraints.append("Definir boundaries explicitos por modulo e manter dependencias unidirecionais.")
+        constraints.append(
+            "Definir boundaries explicitos por modulo e manter dependencias unidirecionais."
+        )
     return constraints
 
 
-def infer_anti_patterns(framework: Optional[str], has_python: bool, has_node: bool) -> List[str]:
+def infer_anti_patterns(
+    framework: Optional[str], has_python: bool, has_node: bool
+) -> List[str]:
     anti = [
         "Nao criar classes/funcoes God object com responsabilidades demais.",
         "Nao deixar TODO/FIXME sem issue ou plano.",
@@ -359,7 +386,9 @@ def infer_anti_patterns(framework: Optional[str], has_python: bool, has_node: bo
     if framework == "Django":
         anti.append("Nao colocar regra de negocio extensa em views.py ou serializers.")
     if has_node:
-        anti.append("Nao misturar acesso HTTP, regra de negocio e SQL no mesmo arquivo.")
+        anti.append(
+            "Nao misturar acesso HTTP, regra de negocio e SQL no mesmo arquivo."
+        )
     if has_python:
         anti.append("Nao introduzir side effects globais invisiveis em import-time.")
     return anti
@@ -377,7 +406,9 @@ def render_agents_markdown(info: ProjectInfo) -> str:
     if info.node_version:
         stack_lines.append(f"- Node.js: {info.node_version}")
 
-    validation_lines = [f"- {label}: `{cmd}`" for label, cmd in info.validation_commands]
+    validation_lines = [
+        f"- {label}: `{cmd}`" for label, cmd in info.validation_commands
+    ]
     arch_lines = [f"- {item}" for item in info.architecture_constraints]
     anti_lines = [f"- {item}" for item in info.anti_patterns]
     has_markdown_lint = (info.root / "scripts" / "markdown-lint.sh").exists()
@@ -471,7 +502,9 @@ def main() -> int:
         action="store_true",
         help="Do not write; return 0 if up-to-date else 2",
     )
-    parser.add_argument("--stdout", action="store_true", help="Print generated markdown")
+    parser.add_argument(
+        "--stdout", action="store_true", help="Print generated markdown"
+    )
     parser.add_argument("--format", choices=["markdown", "json"], default="markdown")
     args = parser.parse_args()
 

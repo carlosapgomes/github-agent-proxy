@@ -34,7 +34,9 @@ class AdrGeneratorTests(unittest.TestCase):
             payload = json.loads(run.stdout)
             adr_path = Path(payload["created_adr"])
             self.assertTrue(adr_path.exists())
-            self.assertIn("ADR-0001-escolha-de-postgresql-como-banco-principal.md", adr_path.name)
+            self.assertIn(
+                "ADR-0001-escolha-de-postgresql-como-banco-principal.md", adr_path.name
+            )
 
             content = adr_path.read_text(encoding="utf-8")
             self.assertIn("# ADR-0001:", content)

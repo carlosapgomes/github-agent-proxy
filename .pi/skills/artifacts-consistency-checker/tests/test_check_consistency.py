@@ -66,7 +66,9 @@ class CheckConsistencyTests(unittest.TestCase):
                 "# Proposal\n\nAdicionar endpoint de exportacao CSV para relatorios.\n",
                 encoding="utf-8",
             )
-            (change / "tasks.md").write_text("- [ ] Implementar endpoint\n", encoding="utf-8")
+            (change / "tasks.md").write_text(
+                "- [ ] Implementar endpoint\n", encoding="utf-8"
+            )
 
             run = subprocess.run(
                 ["python3", str(SCRIPT), "--format", "json"],
@@ -78,7 +80,9 @@ class CheckConsistencyTests(unittest.TestCase):
             self.assertEqual(run.returncode, 1, msg=run.stderr)
             payload = json.loads(run.stdout)
             messages = [f["message"] for f in payload["findings"]]
-            self.assertTrue(any("design.md obrigatorio ausente" in msg for msg in messages))
+            self.assertTrue(
+                any("design.md obrigatorio ausente" in msg for msg in messages)
+            )
 
     def test_quick_simple_bugfix_without_design_is_allowed(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -102,7 +106,9 @@ class CheckConsistencyTests(unittest.TestCase):
             self.assertEqual(run.returncode, 0, msg=run.stderr)
             payload = json.loads(run.stdout)
             messages = [f["message"] for f in payload["findings"]]
-            self.assertFalse(any("design.md obrigatorio ausente" in msg for msg in messages))
+            self.assertFalse(
+                any("design.md obrigatorio ausente" in msg for msg in messages)
+            )
 
 
 if __name__ == "__main__":
