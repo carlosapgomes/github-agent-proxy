@@ -8,13 +8,47 @@ Tests the complete agent workflow against the proxy:
 All GitHub API calls are mocked, but the full FastAPI stack is tested.
 """
 
+from collections.abc import Iterator
+from contextlib import ExitStack, contextmanager
 from unittest.mock import MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
 
-from app.main import app, _app_state
+from app.audit import AuditLogger
 from app.github_client import GitHubClient
+from app.main import _app_state, app
+from app.services import BranchService, CommitService, PullRequestService
+
+
+@contextmanager
+def patch_services_with_client(github_client: MagicMock) -> Iterator[None]:
+    """Patch app services to use a specific GitHub client mock."""
+    _app_state.ensure_initialized()
+    assert _app_state.policy is not None
+
+    mock_audit = MagicMock(spec=AuditLogger)
+    branch_service = BranchService(
+        policy=_app_state.policy,
+        github_client=github_client,
+        audit_logger=mock_audit,
+    )
+    commit_service = CommitService(
+        policy=_app_state.policy,
+        github_client=github_client,
+        audit_logger=mock_audit,
+    )
+    pr_service = PullRequestService(
+        policy=_app_state.policy,
+        github_client=github_client,
+        audit_logger=mock_audit,
+    )
+
+    with ExitStack() as stack:
+        stack.enter_context(patch.object(_app_state, "branch_service", branch_service))
+        stack.enter_context(patch.object(_app_state, "commit_service", commit_service))
+        stack.enter_context(patch.object(_app_state, "pr_service", pr_service))
+        yield
 
 
 class TestFullWorkflowSuccess:
@@ -73,7 +107,7 @@ class TestFullWorkflowSuccess:
         }
         mock_client.create_pr.return_value = mock_github_responses["create_pr"]
 
-        with patch.object(_app_state, "github_client", mock_client):
+        with patch_services_with_client(mock_client):
             # Step 1: Create branch
             branch_response = client.post(
                 "/create-branch",
@@ -146,7 +180,7 @@ class TestFullWorkflowSuccess:
             "html_url": "https://github.com/owner/repo/pull/1",
         }
 
-        with patch.object(_app_state, "github_client", mock_client):
+        with patch_services_with_client(mock_client):
             # Create branch
             client.post(
                 "/create-branch",
@@ -216,7 +250,7 @@ class TestFullWorkflowProtectedBranch:
         mock_client = MagicMock(spec=GitHubClient)
         mock_client.create_branch.return_value = {"ref": "refs/heads/main"}
 
-        with patch.object(_app_state, "github_client", mock_client):
+        with patch_services_with_client(mock_client):
             # Try to create 'main' branch (protected)
             response = client.post(
                 "/create-branch",
@@ -241,7 +275,7 @@ class TestFullWorkflowProtectedBranch:
         """WHEN trying to commit to protected branch THEN denied."""
         mock_client = MagicMock(spec=GitHubClient)
 
-        with patch.object(_app_state, "github_client", mock_client):
+        with patch_services_with_client(mock_client):
             response = client.post(
                 "/commit-files",
                 json={
@@ -267,7 +301,7 @@ class TestFullWorkflowProtectedBranch:
         mock_client = MagicMock(spec=GitHubClient)
         mock_client.create_pr.return_value = {"number": 1, "html_url": "url"}
 
-        with patch.object(_app_state, "github_client", mock_client):
+        with patch_services_with_client(mock_client):
             response = client.post(
                 "/create-pr",
                 json={
@@ -296,7 +330,7 @@ class TestFullWorkflowProtectedBranch:
             "html_url": "https://github.com/owner/repo/pull/42",
         }
 
-        with patch.object(_app_state, "github_client", mock_client):
+        with patch_services_with_client(mock_client):
             response = client.post(
                 "/create-pr",
                 json={
@@ -334,7 +368,7 @@ class TestFullWorkflowUnauthorized:
         """WHEN repo not in allowed_repos THEN all operations denied."""
         mock_client = MagicMock(spec=GitHubClient)
 
-        with patch.object(_app_state, "github_client", mock_client):
+        with patch_services_with_client(mock_client):
             # create-branch denied
             r1 = client.post(
                 "/create-branch",
@@ -450,6 +484,8 @@ class TestFullWorkflowAuditLogging:
         }
 
         mock_audit = MagicMock(spec=AuditLogger)
+
+        assert _app_state.policy is not None
 
         # Create services with mocked audit logger
         mock_branch_service = BranchService(

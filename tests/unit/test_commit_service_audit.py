@@ -5,6 +5,7 @@ Verifies that CommitService correctly logs:
 - Denied requests (repo not allowed, action not allowed, protected branch)
 """
 
+from typing import cast
 from unittest.mock import MagicMock
 
 import pytest
@@ -244,7 +245,7 @@ class TestCommitServiceAuditLogFormat:
         self, service: CommitService, files: list[FileEntry]
     ) -> None:
         """WHEN logging THEN includes agent, repo, action, status."""
-        mock_audit = service._audit_logger
+        mock_audit = cast(MagicMock, service._audit_logger)
 
         service.commit_files(
             agent="hermes",
@@ -272,7 +273,7 @@ class TestCommitServiceAuditLogFormat:
         self, service: CommitService, files: list[FileEntry]
     ) -> None:
         """WHEN agent is passed THEN audit log uses that agent."""
-        mock_audit = service._audit_logger
+        mock_audit = cast(MagicMock, service._audit_logger)
 
         service.commit_files(
             agent="custom-agent",
@@ -290,8 +291,8 @@ class TestCommitServiceAuditLogFormat:
     ) -> None:
         """WHEN request is denied THEN audit log includes error message."""
         # Make repo not allowed
-        service._policy.is_repo_allowed.return_value = False
-        mock_audit = service._audit_logger
+        cast(MagicMock, service._policy).is_repo_allowed.return_value = False
+        mock_audit = cast(MagicMock, service._audit_logger)
 
         with pytest.raises(ForbiddenError):
             service.commit_files(
@@ -341,7 +342,7 @@ class TestCommitServiceAuditLogTiming:
         self, service: CommitService, files: list[FileEntry]
     ) -> None:
         """WHEN request completes THEN exactly one audit log entry."""
-        mock_audit = service._audit_logger
+        mock_audit = cast(MagicMock, service._audit_logger)
 
         service.commit_files(
             agent="hermes",
@@ -357,8 +358,8 @@ class TestCommitServiceAuditLogTiming:
         self, service: CommitService, files: list[FileEntry]
     ) -> None:
         """WHEN request is denied THEN exactly one audit log entry."""
-        service._policy.is_repo_allowed.return_value = False
-        mock_audit = service._audit_logger
+        cast(MagicMock, service._policy).is_repo_allowed.return_value = False
+        mock_audit = cast(MagicMock, service._audit_logger)
 
         with pytest.raises(ForbiddenError):
             service.commit_files(
@@ -375,8 +376,10 @@ class TestCommitServiceAuditLogTiming:
         self, service: CommitService, files: list[FileEntry]
     ) -> None:
         """WHEN GitHub API errors THEN exactly one audit log entry."""
-        service._github_client.commit_files.side_effect = Exception("Network error")
-        mock_audit = service._audit_logger
+        cast(MagicMock, service._github_client).commit_files.side_effect = Exception(
+            "Network error"
+        )
+        mock_audit = cast(MagicMock, service._audit_logger)
 
         with pytest.raises(ServerError):
             service.commit_files(

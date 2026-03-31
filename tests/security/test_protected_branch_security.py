@@ -4,13 +4,47 @@ Verifies that there are NO bypass paths to write to protected branches.
 This is a critical security validation for the proxy.
 """
 
+from collections.abc import Iterator
+from contextlib import ExitStack, contextmanager
 from unittest.mock import MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
 
-from app.main import app, _app_state
+from app.audit import AuditLogger
 from app.github_client import GitHubClient
+from app.main import _app_state, app
+from app.services import BranchService, CommitService, PullRequestService
+
+
+@contextmanager
+def patch_services_with_client(github_client: MagicMock) -> Iterator[None]:
+    """Patch app services to use a specific GitHub client mock."""
+    _app_state.ensure_initialized()
+    assert _app_state.policy is not None
+
+    mock_audit = MagicMock(spec=AuditLogger)
+    branch_service = BranchService(
+        policy=_app_state.policy,
+        github_client=github_client,
+        audit_logger=mock_audit,
+    )
+    commit_service = CommitService(
+        policy=_app_state.policy,
+        github_client=github_client,
+        audit_logger=mock_audit,
+    )
+    pr_service = PullRequestService(
+        policy=_app_state.policy,
+        github_client=github_client,
+        audit_logger=mock_audit,
+    )
+
+    with ExitStack() as stack:
+        stack.enter_context(patch.object(_app_state, "branch_service", branch_service))
+        stack.enter_context(patch.object(_app_state, "commit_service", commit_service))
+        stack.enter_context(patch.object(_app_state, "pr_service", pr_service))
+        yield
 
 
 class TestProtectedBranchSecurity:
@@ -44,7 +78,7 @@ class TestProtectedBranchSecurity:
         protected_branch: str,
     ) -> None:
         """WHEN branch name is protected THEN creation denied regardless of other params."""
-        with patch.object(_app_state, "github_client", mock_github_client):
+        with patch_services_with_client(mock_github_client):
             response = client.post(
                 "/create-branch",
                 json={
@@ -70,7 +104,7 @@ class TestProtectedBranchSecurity:
         mock_github_client: MagicMock,
     ) -> None:
         """WHEN creating 'main' branch THEN denied even with valid base."""
-        with patch.object(_app_state, "github_client", mock_github_client):
+        with patch_services_with_client(mock_github_client):
             response = client.post(
                 "/create-branch",
                 json={
@@ -97,7 +131,7 @@ class TestProtectedBranchSecurity:
         protected_branch: str,
     ) -> None:
         """WHEN committing to protected branch THEN denied."""
-        with patch.object(_app_state, "github_client", mock_github_client):
+        with patch_services_with_client(mock_github_client):
             response = client.post(
                 "/commit-files",
                 json={
@@ -123,7 +157,7 @@ class TestProtectedBranchSecurity:
         mock_github_client: MagicMock,
     ) -> None:
         """WHEN committing single file to main THEN denied."""
-        with patch.object(_app_state, "github_client", mock_github_client):
+        with patch_services_with_client(mock_github_client):
             response = client.post(
                 "/commit-files",
                 json={
@@ -145,7 +179,7 @@ class TestProtectedBranchSecurity:
         mock_github_client: MagicMock,
     ) -> None:
         """WHEN committing to master THEN denied (implicit protection)."""
-        with patch.object(_app_state, "github_client", mock_github_client):
+        with patch_services_with_client(mock_github_client):
             response = client.post(
                 "/commit-files",
                 json={
@@ -172,7 +206,7 @@ class TestProtectedBranchSecurity:
         protected_branch: str,
     ) -> None:
         """WHEN creating PR from protected head THEN denied."""
-        with patch.object(_app_state, "github_client", mock_github_client):
+        with patch_services_with_client(mock_github_client):
             response = client.post(
                 "/create-pr",
                 json={
@@ -213,6 +247,7 @@ class TestProtectedBranchSecurity:
         }
         mock_audit = MagicMock(spec=AuditLogger)
 
+        assert _app_state.policy is not None
         service = PullRequestService(
             policy=_app_state.policy,
             github_client=mock_client,
@@ -319,7 +354,7 @@ class TestProtectedBranchConfiguration:
         # staging is in policy.yaml
         mock_client = MagicMock(spec=GitHubClient)
 
-        with patch.object(_app_state, "github_client", mock_client):
+        with patch_services_with_client(mock_client):
             response = client.post(
                 "/commit-files",
                 json={
@@ -349,6 +384,7 @@ class TestProtectedBranchConfiguration:
         }
         mock_audit = MagicMock(spec=AuditLogger)
 
+        assert _app_state.policy is not None
         service = BranchService(
             policy=_app_state.policy,
             github_client=mock_client,
@@ -394,6 +430,7 @@ class TestSecurityAuditTrail:
         mock_github = MagicMock(spec=GitHubClient)
         mock_audit = MagicMock(spec=AuditLogger)
 
+        assert _app_state.policy is not None
         service = CommitService(
             policy=_app_state.policy,
             github_client=mock_github,

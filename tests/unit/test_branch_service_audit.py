@@ -5,6 +5,7 @@ Verifies that BranchService correctly logs:
 - Denied requests (repo not allowed, action not allowed, protected branch)
 """
 
+from typing import cast
 from unittest.mock import MagicMock
 
 import pytest
@@ -225,7 +226,7 @@ class TestBranchServiceAuditLogFormat:
         self, service: BranchService
     ) -> None:
         """WHEN logging THEN includes timestamp, agent, repo, action, status."""
-        mock_audit = service._audit_logger
+        mock_audit = cast(MagicMock, service._audit_logger)
 
         service.create_branch(
             agent="hermes",
@@ -250,7 +251,7 @@ class TestBranchServiceAuditLogFormat:
 
     def test_audit_log_agent_from_caller(self, service: BranchService) -> None:
         """WHEN agent is passed THEN audit log uses that agent."""
-        mock_audit = service._audit_logger
+        mock_audit = cast(MagicMock, service._audit_logger)
 
         service.create_branch(
             agent="custom-agent",
@@ -265,8 +266,8 @@ class TestBranchServiceAuditLogFormat:
     def test_audit_log_includes_error_on_denial(self, service: BranchService) -> None:
         """WHEN request is denied THEN audit log includes error message."""
         # Make repo not allowed
-        service._policy.is_repo_allowed.return_value = False
-        mock_audit = service._audit_logger
+        cast(MagicMock, service._policy).is_repo_allowed.return_value = False
+        mock_audit = cast(MagicMock, service._audit_logger)
 
         with pytest.raises(ForbiddenError):
             service.create_branch(
@@ -307,7 +308,7 @@ class TestBranchServiceAuditLogTiming:
 
     def test_audit_logged_once_per_request(self, service: BranchService) -> None:
         """WHEN request completes THEN exactly one audit log entry."""
-        mock_audit = service._audit_logger
+        mock_audit = cast(MagicMock, service._audit_logger)
 
         service.create_branch(
             agent="hermes",
@@ -320,8 +321,8 @@ class TestBranchServiceAuditLogTiming:
 
     def test_audit_logged_once_on_denial(self, service: BranchService) -> None:
         """WHEN request is denied THEN exactly one audit log entry."""
-        service._policy.is_repo_allowed.return_value = False
-        mock_audit = service._audit_logger
+        cast(MagicMock, service._policy).is_repo_allowed.return_value = False
+        mock_audit = cast(MagicMock, service._audit_logger)
 
         with pytest.raises(ForbiddenError):
             service.create_branch(
@@ -335,8 +336,10 @@ class TestBranchServiceAuditLogTiming:
 
     def test_audit_logged_once_on_error(self, service: BranchService) -> None:
         """WHEN GitHub API errors THEN exactly one audit log entry."""
-        service._github_client.create_branch.side_effect = Exception("Network error")
-        mock_audit = service._audit_logger
+        cast(MagicMock, service._github_client).create_branch.side_effect = Exception(
+            "Network error"
+        )
+        mock_audit = cast(MagicMock, service._audit_logger)
 
         from app.services import ServerError
 

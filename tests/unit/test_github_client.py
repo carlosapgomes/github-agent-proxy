@@ -29,25 +29,31 @@ class TestGitHubAppConfig:
     def test_missing_app_id_raises_error(self) -> None:
         """WHEN app_id is missing THEN ValidationError is raised."""
         with pytest.raises(Exception):  # Pydantic ValidationError
-            GitHubAppConfig(
-                private_key="key",
-                installation_id="789",
+            GitHubAppConfig.model_validate(
+                {
+                    "private_key": "key",
+                    "installation_id": "789",
+                }
             )
 
     def test_missing_private_key_raises_error(self) -> None:
         """WHEN private_key is missing THEN ValidationError is raised."""
         with pytest.raises(Exception):  # Pydantic ValidationError
-            GitHubAppConfig(
-                app_id="123456",
-                installation_id="789",
+            GitHubAppConfig.model_validate(
+                {
+                    "app_id": "123456",
+                    "installation_id": "789",
+                }
             )
 
     def test_missing_installation_id_raises_error(self) -> None:
         """WHEN installation_id is missing THEN ValidationError is raised."""
         with pytest.raises(Exception):  # Pydantic ValidationError
-            GitHubAppConfig(
-                app_id="123456",
-                private_key="key",
+            GitHubAppConfig.model_validate(
+                {
+                    "app_id": "123456",
+                    "private_key": "key",
+                }
             )
 
 
