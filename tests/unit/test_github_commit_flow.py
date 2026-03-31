@@ -12,7 +12,12 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from app.github_client import GitHubAPIError, GitHubClient, TokenProvider
+from app.github_client import (
+    CommitAuthor,
+    GitHubAPIError,
+    GitHubClient,
+    TokenProvider,
+)
 
 
 class TestGitHubClientCommitFiles:
@@ -263,6 +268,119 @@ class TestGitHubClientCommitFiles:
                     files=[("test.txt", "content")],
                     message="Test",
                 )
+
+    def test_commit_files_includes_configured_author(self) -> None:
+        """WHEN commit author is configured THEN GitHub commit payload includes author."""
+        mock_token_provider = MagicMock(spec=TokenProvider)
+        mock_token_provider.get_installation_token.return_value = "ghs_test_token"
+        client = GitHubClient(
+            token_provider=mock_token_provider,
+            commit_author=CommitAuthor(
+                name="Carlos Example",
+                email="123+carlos@users.noreply.github.com",
+            ),
+        )
+
+        with patch("httpx.Client") as mock_httpx:
+            mock_ref_response = MagicMock()
+            mock_ref_response.status_code = 200
+            mock_ref_response.json.return_value = {"object": {"sha": "base-sha"}}
+
+            mock_commit_response = MagicMock()
+            mock_commit_response.status_code = 200
+            mock_commit_response.json.return_value = {"tree": {"sha": "tree-sha"}}
+
+            mock_blob_response = MagicMock()
+            mock_blob_response.status_code = 201
+            mock_blob_response.json.return_value = {"sha": "blob-sha"}
+
+            mock_tree_response = MagicMock()
+            mock_tree_response.status_code = 201
+            mock_tree_response.json.return_value = {"sha": "new-tree-sha"}
+
+            mock_new_commit_response = MagicMock()
+            mock_new_commit_response.status_code = 201
+            mock_new_commit_response.json.return_value = {"sha": "new-commit-sha"}
+
+            mock_update_ref_response = MagicMock()
+            mock_update_ref_response.status_code = 200
+
+            mock_http_client = MagicMock()
+            mock_http_client.get.side_effect = [mock_ref_response, mock_commit_response]
+            mock_http_client.post.side_effect = [
+                mock_blob_response,
+                mock_tree_response,
+                mock_new_commit_response,
+            ]
+            mock_http_client.patch.return_value = mock_update_ref_response
+            mock_http_client.__enter__ = MagicMock(return_value=mock_http_client)
+            mock_http_client.__exit__ = MagicMock(return_value=False)
+            mock_httpx.return_value = mock_http_client
+
+            client.commit_files(
+                repo="owner/repo",
+                branch="feature/test",
+                files=[("test.txt", "hello world")],
+                message="Add test file",
+            )
+
+            commit_call = mock_http_client.post.call_args_list[2]
+            assert commit_call[1]["json"]["author"] == {
+                "name": "Carlos Example",
+                "email": "123+carlos@users.noreply.github.com",
+            }
+
+    def test_commit_files_without_configured_author_omits_author_field(self) -> None:
+        """WHEN commit author is not configured THEN GitHub commit payload omits author."""
+        mock_token_provider = MagicMock(spec=TokenProvider)
+        mock_token_provider.get_installation_token.return_value = "ghs_test_token"
+        client = GitHubClient(token_provider=mock_token_provider)
+
+        with patch("httpx.Client") as mock_httpx:
+            mock_ref_response = MagicMock()
+            mock_ref_response.status_code = 200
+            mock_ref_response.json.return_value = {"object": {"sha": "base-sha"}}
+
+            mock_commit_response = MagicMock()
+            mock_commit_response.status_code = 200
+            mock_commit_response.json.return_value = {"tree": {"sha": "tree-sha"}}
+
+            mock_blob_response = MagicMock()
+            mock_blob_response.status_code = 201
+            mock_blob_response.json.return_value = {"sha": "blob-sha"}
+
+            mock_tree_response = MagicMock()
+            mock_tree_response.status_code = 201
+            mock_tree_response.json.return_value = {"sha": "new-tree-sha"}
+
+            mock_new_commit_response = MagicMock()
+            mock_new_commit_response.status_code = 201
+            mock_new_commit_response.json.return_value = {"sha": "new-commit-sha"}
+
+            mock_update_ref_response = MagicMock()
+            mock_update_ref_response.status_code = 200
+
+            mock_http_client = MagicMock()
+            mock_http_client.get.side_effect = [mock_ref_response, mock_commit_response]
+            mock_http_client.post.side_effect = [
+                mock_blob_response,
+                mock_tree_response,
+                mock_new_commit_response,
+            ]
+            mock_http_client.patch.return_value = mock_update_ref_response
+            mock_http_client.__enter__ = MagicMock(return_value=mock_http_client)
+            mock_http_client.__exit__ = MagicMock(return_value=False)
+            mock_httpx.return_value = mock_http_client
+
+            client.commit_files(
+                repo="owner/repo",
+                branch="feature/test",
+                files=[("test.txt", "hello world")],
+                message="Add test file",
+            )
+
+            commit_call = mock_http_client.post.call_args_list[2]
+            assert "author" not in commit_call[1]["json"]
 
 
 class TestGitHubClientCommitFilesTokenUsage:
