@@ -40,27 +40,70 @@ If you're using Hermes agent, use the built-in skill located at `skills/github-p
 
 1. ✅ GitHub Agent Proxy is deployed and running
 2. ✅ You have the proxy URL (e.g., `http://localhost:8000`)
-3. ✅ You have an API key configured in the proxy
-4. ✅ Policy is configured for your repositories
+3. ✅ You have a Bearer token configured for the proxy
+4. ✅ Policy is configured for your repositories (`config/policy.yaml`)
 
 ### Environment Variables
+
+There are two separate environments involved:
+
+#### 1. Agent/Hermes environment
 
 Set these in your Hermes environment (Hermes will prompt securely if missing):
 
 ```bash
-# Required
+# Required on the client/agent side
 export GITHUB_PROXY_URL="http://localhost:8000"
 export GITHUB_PROXY_API_KEY="your-api-key-here"
 ```
 
-If you operate the proxy yourself and want proxy-created commits to count toward your GitHub profile, set these on the **proxy service** environment:
+Or copy the tracked client example file:
+
+```bash
+cp .env.client.example .env.client
+source .env.client
+```
+
+`GITHUB_PROXY_API_KEY` is the client-side Bearer token value sent in `Authorization: Bearer ...`.
+
+#### 2. Proxy service environment
+
+If you operate the proxy yourself, configure these on the **proxy service** process:
+
+```bash
+export PROXY_API_KEY="your-api-key-here"
+export GITHUB_APP_ID="your-github-app-id"
+export GITHUB_PRIVATE_KEY="$(cat path/to/private-key.pem)"
+export GITHUB_INSTALLATION_ID="your-installation-id"
+```
+
+Or copy the tracked proxy example file and edit it:
+
+```bash
+cp .env.example .env
+```
+
+For policy setup, you can also start from the tracked example:
+
+```bash
+cp config/policy.yaml.example config/policy.yaml
+```
+
+Optional commit author attribution on the proxy service:
 
 ```bash
 export GITHUB_COMMIT_AUTHOR_NAME="Your Name"
 export GITHUB_COMMIT_AUTHOR_EMAIL="123456+your-login@users.noreply.github.com"
 ```
 
-Both author variables must be configured together. Use an email already associated with your GitHub account (your verified address or GitHub `noreply` address).
+Notes:
+- The proxy reads these values from process environment variables via `os.environ`.
+- The proxy does **not** auto-load a `.env` file from the current directory.
+- If you use a `.env` file for the proxy, load it before startup or start Uvicorn with `--env-file .env`.
+- `GITHUB_PRIVATE_KEY` must contain the PEM private key content, not a file path.
+- In `.env.example`, `GITHUB_PRIVATE_KEY` is represented as a single quoted value with `\n` escapes.
+- Both author variables must be configured together.
+- Use an email already associated with your GitHub account (your verified address or GitHub `noreply` address).
 
 ### CLI Reference
 
@@ -473,8 +516,8 @@ uv run uvicorn app.main:app --reload
 ```
 
 **Solutions:**
-1. Verify `GITHUB_PROXY_API_KEY` is set
-2. Check the API key matches the proxy's `API_KEY` environment variable
+1. Verify `GITHUB_PROXY_API_KEY` is set on the client/agent side
+2. Check the API key matches the proxy's `PROXY_API_KEY` environment variable
 3. Ensure the header format is `Authorization: Bearer <key>`
 
 ### Forbidden (403)

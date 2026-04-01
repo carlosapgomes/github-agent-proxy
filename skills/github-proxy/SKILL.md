@@ -15,7 +15,7 @@ required_environment_variables:
     required_for: "All proxy operations"
   - name: GITHUB_PROXY_API_KEY
     prompt: "GitHub Proxy API Key"
-    help: "The API key configured in the proxy's environment"
+    help: "The client-side API key value that must match the proxy service's PROXY_API_KEY environment variable"
     required_for: "Authentication with the proxy"
 ---
 
@@ -50,6 +50,26 @@ Use this skill when you need to:
 | `create-branch` | Create a new branch from a base |
 | `commit-files` | Commit files to a non-protected branch |
 | `create-pr` | Create a pull request |
+
+## Environment Setup
+
+Client-side variables used by this skill:
+
+```bash
+export GITHUB_PROXY_URL="http://localhost:8000"
+export GITHUB_PROXY_API_KEY="your-api-key-here"
+```
+
+Or copy the tracked client example file:
+
+```bash
+cp .env.client.example .env.client
+source .env.client
+```
+
+If you also operate the proxy service, the proxy process itself must be configured separately with variables such as `PROXY_API_KEY`, `GITHUB_APP_ID`, `GITHUB_PRIVATE_KEY`, and `GITHUB_INSTALLATION_ID`. The proxy policy is configured separately in `config/policy.yaml` (starter example: `config/policy.yaml.example`).
+
+The proxy does **not** auto-load a `.env` file by itself. Load `.env` before startup or run Uvicorn with `--env-file .env`.
 
 ## CLI Usage
 

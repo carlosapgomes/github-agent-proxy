@@ -1,0 +1,22 @@
+# GitHub Agent Proxy Policy Configuration
+# Copy to config/policy.yaml and customize for your environment.
+# Example:
+#   cp config/policy.yaml.example config/policy.yaml
+
+# Repositories that the agent may interact with
+allowed_repos:
+  - owner/allowed-repo
+  - owner/another-repo
+
+# Actions that the agent may perform
+allowed_actions:
+  - create_branch
+  - commit_files
+  - create_pr
+
+# Branches that cannot receive direct writes
+# Note: 'main' and 'master' are always protected implicitly
+# Matching is exact only; entries like 'release/*' are treated literally
+protected_branches:
+  - staging
+  - release/*

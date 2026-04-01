@@ -25,8 +25,8 @@ In case of conflict, the most recent approved OpenSpec artifacts in Git are sour
 Provide a minimal and auditable API proxy that removes direct GitHub write access from Hermes while allowing controlled development automation through a constrained endpoint set.
 
 ## High-Level Architecture
-- **Client**: Hermes agent authenticated with a static API key (`Authorization: Bearer <API_KEY>`).
-- **Service**: FastAPI proxy enforcing authN/authZ and branch safety constraints.
+- **Client**: Hermes agent authenticated with a static API key (`Authorization: Bearer <API_KEY>`), typically provided to the client as `GITHUB_PROXY_API_KEY`.
+- **Service**: FastAPI proxy enforcing authN/authZ and branch safety constraints, configured via process environment variables such as `PROXY_API_KEY`, `GITHUB_APP_ID`, `GITHUB_PRIVATE_KEY`, and `GITHUB_INSTALLATION_ID`.
 - **Upstream**: GitHub API authenticated via GitHub App installation token generated per request.
 - **Policy source**: YAML config (`allowed_repos`, `allowed_actions`, `protected_branches`).
 - **Auditability**: structured JSON request logs.

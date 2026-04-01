@@ -12,7 +12,7 @@ The GitHub Agent Proxy exposes three write endpoints for agent operations:
 | `POST /commit-files` | Commit files to a branch |
 | `POST /create-pr` | Create a pull request |
 
-All endpoints require authentication and are subject to policy authorization.
+All endpoints require authentication and are subject to policy-based authorization.
 
 ## Optional Commit Author Attribution
 
@@ -35,6 +35,33 @@ All endpoints require a Bearer token in the `Authorization` header:
 ```http
 Authorization: Bearer <API_KEY>
 ```
+
+`<API_KEY>` is the client-side Bearer token value. On the proxy service, this must match the `PROXY_API_KEY` environment variable.
+
+### Proxy Runtime Configuration
+
+The proxy service reads configuration from process environment variables:
+
+```bash
+export PROXY_API_KEY="your-api-key"
+export GITHUB_APP_ID="your-github-app-id"
+export GITHUB_PRIVATE_KEY="$(cat path/to/private-key.pem)"
+export GITHUB_INSTALLATION_ID="your-installation-id"
+```
+
+Or copy the tracked proxy example file and edit it:
+
+```bash
+cp .env.example .env
+```
+
+The authorization policy is read from `config/policy.yaml`. A starter example is available at `config/policy.yaml.example`.
+
+Notes:
+- The proxy does **not** auto-load a `.env` file from the current directory.
+- If you use a `.env` file, load it before startup or start Uvicorn with `--env-file .env`.
+- `GITHUB_PRIVATE_KEY` must contain the PEM private key content, not a file path.
+- In `.env.example`, `GITHUB_PRIVATE_KEY` is represented as a single quoted value with `\n` escapes.
 
 ### Error Responses
 

@@ -41,25 +41,90 @@ uv sync
 
 ### Configuration
 
-1. Copy the example policy:
-```bash
-cp config/policy.yaml.example config/policy.yaml
-```
+1. Review `config/policy.yaml` and adjust allowed repositories, actions, and protected branches for your environment.
 
-2. Edit `config/policy.yaml` to configure allowed repositories and actions.
+   A tracked starter example is also available at `config/policy.yaml.example`.
 
-3. Set environment variables:
+2. Set proxy service environment variables:
 ```bash
-export API_KEY="your-api-key"
+export PROXY_API_KEY="your-api-key"
 export GITHUB_APP_ID="your-github-app-id"
-export GITHUB_APP_PRIVATE_KEY_PATH="path/to/private-key.pem"
+export GITHUB_PRIVATE_KEY="$(cat path/to/private-key.pem)"
+export GITHUB_INSTALLATION_ID="your-installation-id"
+
+# Optional: fixed Git author metadata for proxy-created commits
+export GITHUB_COMMIT_AUTHOR_NAME="Your Name"
+export GITHUB_COMMIT_AUTHOR_EMAIL="123456+your-login@users.noreply.github.com"
 ```
+
+Or copy the tracked example file and edit it:
+```bash
+cp .env.example .env
+```
+
+Notes:
+- The proxy reads configuration from process environment variables via `os.environ`.
+- The proxy does **not** auto-load a `.env` file from the current directory.
+- If you want to use a `.env` file, load it before startup (for example, `source .env`) or let Uvicorn load it with `--env-file .env`.
+- `GITHUB_PRIVATE_KEY` must contain the PEM key content, not a file path.
+- In `.env.example`, `GITHUB_PRIVATE_KEY` is represented as a single quoted value with `\n` escapes.
 
 ### Running
 
 ```bash
 uv run uvicorn app.main:app --reload
 ```
+
+With `.env` loaded by Uvicorn:
+
+```bash
+uv run uvicorn app.main:app --reload --env-file .env
+```
+
+### Quick Start Local
+
+Use this sequence for a first local run:
+
+```bash
+# 1. Create local config files from the tracked examples
+cp config/policy.yaml.example config/policy.yaml
+cp .env.example .env
+
+# 2. Edit both files for your environment
+# - config/policy.yaml: allowed_repos, allowed_actions, protected_branches
+# - .env: PROXY_API_KEY, GITHUB_APP_ID, GITHUB_PRIVATE_KEY, GITHUB_INSTALLATION_ID
+
+# 3. Start the proxy
+uv run uvicorn app.main:app --reload --env-file .env
+```
+
+In another terminal, verify the server is up:
+
+```bash
+curl http://localhost:8000/docs
+```
+
+Then test an authenticated request with a repository that exists in `config/policy.yaml`:
+
+```bash
+export GITHUB_PROXY_URL="http://localhost:8000"
+export GITHUB_PROXY_API_KEY="replace-with-the-same-value-as-PROXY_API_KEY"
+
+curl -X POST "${GITHUB_PROXY_URL}/create-branch" \
+  -H "Authorization: Bearer ${GITHUB_PROXY_API_KEY}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "repo": "owner/allowed-repo",
+    "branch": "test/local-quickstart",
+    "base": "main"
+  }'
+```
+
+Expected outcomes:
+- `200` with a JSON success response if your GitHub App credentials are valid and the repo is allowed.
+- `401` if the Bearer token does not match `PROXY_API_KEY`.
+- `403` if the repository or action is blocked by `config/policy.yaml`.
+- `500` if GitHub App credentials are missing/invalid or the upstream GitHub request fails.
 
 ## Documentation
 
@@ -87,7 +152,7 @@ uv run uvicorn app.main:app --reload
 
 ### Request Flow
 
-1. Agent sends request with API key
+1. Agent sends request with a Bearer token (API key)
 2. Proxy validates authentication
 3. Proxy checks policy (repo, action, branch)
 4. Proxy obtains GitHub App installation token
@@ -160,7 +225,8 @@ github-agent-proxy/
 │   ├── audit.py          # Audit logging
 │   └── services.py       # Business logic services
 ├── config/
-│   └── policy.yaml       # Policy configuration
+│   ├── policy.yaml         # Active policy configuration
+│   └── policy.yaml.example # Starter policy example
 ├── tests/
 │   ├── unit/             # Unit tests
 │   ├── integration/      # Integration tests

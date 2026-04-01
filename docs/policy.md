@@ -4,7 +4,19 @@ The GitHub Agent Proxy uses a YAML policy file to control authorization.
 
 ## Policy File Location
 
-Default location: `config/policy.yaml`
+Active policy file: `config/policy.yaml`
+
+Starter example: `config/policy.yaml.example`
+
+## Getting Started
+
+If you want a clean starting point, copy the example file:
+
+```bash
+cp config/policy.yaml.example config/policy.yaml
+```
+
+Then edit `config/policy.yaml` for your environment.
 
 ## Policy Structure
 
@@ -61,7 +73,7 @@ allowed_actions:
   - commit_files
   - create_pr
 
-# Read-only (branch creation only for exploration)
+# Limited access (branch creation only)
 allowed_actions:
   - create_branch
 ```
@@ -76,7 +88,7 @@ Branches that cannot receive direct writes.
 ```yaml
 protected_branches:
   - staging          # Exact match
-  - release/*        # Note: currently exact match only
+  - release/*        # Stored literally; matching is exact only
   - production
 ```
 
@@ -192,7 +204,7 @@ PolicyError: Missing required field: allowed_repos
 ## Changing Policy
 
 1. Edit `config/policy.yaml`
-2. Restart the proxy server (policy is loaded at startup)
+2. Restart the proxy server (the policy is loaded at startup)
 
 ```bash
 # After editing policy
