@@ -57,6 +57,8 @@ cp .env.example .env
 
 The authorization policy is read from `config/policy.yaml`. A starter example is available at `config/policy.yaml.example`.
 
+See [GitHub App Setup](github-app-setup.md) for how to create the app, choose permissions, install it, and obtain these values.
+
 Notes:
 - The proxy does **not** auto-load a `.env` file from the current directory.
 - If you use a `.env` file, load it before startup or start Uvicorn with `--env-file .env`.

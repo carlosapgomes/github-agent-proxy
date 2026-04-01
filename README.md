@@ -68,6 +68,7 @@ Notes:
 - If you want to use a `.env` file, load it before startup (for example, `source .env`) or let Uvicorn load it with `--env-file .env`.
 - `GITHUB_PRIVATE_KEY` must contain the PEM key content, not a file path.
 - In `.env.example`, `GITHUB_PRIVATE_KEY` is represented as a single quoted value with `\n` escapes.
+- See [GitHub App Setup](docs/github-app-setup.md) for how to create the app, install it, and obtain `GITHUB_APP_ID` / `GITHUB_INSTALLATION_ID`.
 
 ### Running
 
@@ -130,6 +131,7 @@ Expected outcomes:
 
 - [API Reference](docs/api.md) - Complete API documentation
 - [Policy Configuration](docs/policy.md) - Policy file configuration guide
+- [GitHub App Setup](docs/github-app-setup.md) - How to create/install the GitHub App and obtain runtime credentials
 - [Agent Integration](docs/agent-integration.md) - How to configure Hermes and other agents
 - [Hermes Skill](skills/github-proxy/SKILL.md) - Built-in skill for Hermes agent
 - [AGENTS.md](AGENTS.md) - Development guidelines

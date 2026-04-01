@@ -104,6 +104,7 @@ Notes:
 - In `.env.example`, `GITHUB_PRIVATE_KEY` is represented as a single quoted value with `\n` escapes.
 - Both author variables must be configured together.
 - Use an email already associated with your GitHub account (your verified address or GitHub `noreply` address).
+- See [GitHub App Setup](github-app-setup.md) for app creation, permissions, installation, and installation ID guidance.
 
 ### CLI Reference
 
@@ -586,5 +587,6 @@ Before deploying to production:
 
 - [API Reference](api.md) - Complete endpoint documentation
 - [Policy Configuration](policy.md) - Policy file configuration
+- [GitHub App Setup](github-app-setup.md) - GitHub App creation, installation, and permissions
 - [Hermes Skill](../skills/github-proxy/SKILL.md) - Built-in skill documentation
 - [README](../README.md) - Project overview and setup
